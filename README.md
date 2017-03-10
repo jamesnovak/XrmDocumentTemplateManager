@@ -1,0 +1,2 @@
+# XrmDocumentTemplateManager
+XrmToolbox DocumentTemplateManager Plugin
