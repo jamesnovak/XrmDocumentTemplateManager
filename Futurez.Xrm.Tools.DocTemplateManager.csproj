@@ -115,7 +115,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DocumentTemplateManager.cs" />
-    <Compile Include="DocTemplateManagerControl.cs" />
+    <Compile Include="DocTemplateManagerControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="DocTemplateManagerControl.Designer.cs">
       <DependentUpon>DocTemplateManagerControl.cs</DependentUpon>
     </Compile>
