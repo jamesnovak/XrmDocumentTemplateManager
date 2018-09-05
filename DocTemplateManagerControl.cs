@@ -13,6 +13,7 @@ using XrmToolBox.Extensibility.Args;
 
 using Futurez.Entities;
 using System.Text;
+using McTools.Xrm.Connection;
 
 namespace Futurez.Xrm.Tools
 {
@@ -22,7 +23,7 @@ namespace Futurez.Xrm.Tools
         Deactivate,
         Delete
     };
-    public partial class DocTemplateManagerControl : PluginControlBase, IStatusBarMessenger // PluginControlBase UserControl
+    public partial class DocTemplateManagerControl : PluginControlBase, IStatusBarMessenger
     {
         EditTemplateControl _editControl = null;
         UploadMultipleSummary _uploadSummary = null;
@@ -43,54 +44,15 @@ namespace Futurez.Xrm.Tools
         /// </summary>
         private void LoadDocumentTemplates(Action onCompleteCallback)
         {
-            this.listViewDocumentTemplates.Items.Clear();
-            this.listViewDocumentTemplates.Refresh();
-
             WorkAsync(new WorkAsyncInfo
             {
                 Message = "Retrieving the list of Document Templates",
                 Work = (w, e) =>
                 {
-                    var listViewItemsColl = new List<ListViewItem>();
                     try
                     {
-                        this.listViewDocumentTemplates.SuspendLayout();
-
                         w.ReportProgress(0, "Loading Templates from CRM");
-                        var templates = DocumentTemplateEdit.GetAllSystemTemplates(this.Service);
-
-                        int progress = 0;
-                        int counter = 0;
-                        foreach (var template in templates)
-                        {
-                            progress = counter / templates.Count * 100;
-                            w.ReportProgress(progress, "New template: " + template.Name);
-
-                            // we don't want the content!
-                            var docType = template.Type;
-                            var lvItem = new ListViewItem()
-                            {
-                                Name = "Name",
-                                Text = template.Name,
-                                Tag = template,  // stash the template here so we can view details later
-                                Group = this.listViewDocumentTemplates.Groups[docType]
-                            };
-
-                            lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.Status) { Tag = "Status", Name = "Status" });
-                            lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.CreatedOn.ToString()) { Tag = "CreatedOn", Name = "CreatedOn" });
-                            lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.ModifiedOn.ToString()) { Tag = "ModifiedOn", Name = "ModifiedOn" });
-                            lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.AssocaitedEntity) { Tag = "Associated Entity", Name = "Associated Entity" });
-
-                            listViewItemsColl.Add(lvItem);
-                        }
-                        
-                        w.ReportProgress(100, "Loading Templates Complete");
-                        w.ReportProgress(0, "");
-
-                        // NOW add the items to avoid flicker
-                        listViewDocumentTemplates.Items.AddRange(listViewItemsColl.ToArray<ListViewItem>());
-                        listViewDocumentTemplates.ResumeLayout();
-
+                        e.Result = DocumentTemplateEdit.GetAllSystemTemplates(Service);
                     }
                     catch (Exception ex)
                     {
@@ -103,6 +65,11 @@ namespace Futurez.Xrm.Tools
                 },
                 PostWorkCallBack = e =>
                 {
+                    var templates = e.Result as List<DocumentTemplateEdit>;
+
+                    // load the templates
+                    LoadTemplatesComplete(templates);
+
                     // now update the UI with the new selection 
                     UpdateControlsForSelection();
 
@@ -114,6 +81,43 @@ namespace Futurez.Xrm.Tools
                 MessageWidth = 340,
                 MessageHeight = 150
             });
+        }
+
+        private void LoadTemplatesComplete(List<DocumentTemplateEdit> templates)
+        {
+            listViewDocumentTemplates.Items.Clear();
+            listViewDocumentTemplates.Refresh();
+            listViewDocumentTemplates.SuspendLayout();
+
+            var listViewItemsColl = new List<ListViewItem>();
+
+            int progress = 0;
+            int counter = 0;
+            foreach (var template in templates)
+            {
+                progress = counter / templates.Count * 100;
+
+                // we don't want the content!
+                var docType = template.Type;
+                var lvItem = new ListViewItem()
+                {
+                    Name = "Name",
+                    Text = template.Name,
+                    Tag = template,  // stash the template here so we can view details later
+                    Group = listViewDocumentTemplates.Groups[docType]
+                };
+
+                lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.Status) { Tag = "Status", Name = "Status" });
+                lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.CreatedOn.ToString()) { Tag = "CreatedOn", Name = "CreatedOn" });
+                lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.ModifiedOn.ToString()) { Tag = "ModifiedOn", Name = "ModifiedOn" });
+                lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.AssociatedEntity) { Tag = "Associated Entity", Name = "Associated Entity" });
+
+                listViewItemsColl.Add(lvItem);
+            }
+
+            // NOW add the items to avoid flicker
+            listViewDocumentTemplates.Items.AddRange(listViewItemsColl.ToArray<ListViewItem>());
+            listViewDocumentTemplates.ResumeLayout();
         }
 
         #region Document Template related methods 
@@ -142,15 +146,15 @@ namespace Futurez.Xrm.Tools
         /// </summary>
         private void PerformEditTemplate()
         {
-            ListViewItem item = this.listViewDocumentTemplates.SelectedItems[0];
+            ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
             var template = item.Tag as DocumentTemplateEdit;
 
             // new instance of the edit control
-            _editControl = new EditTemplateControl(this.Service, template)
+            _editControl = new EditTemplateControl(Service, template)
             {
                 // center me
-                Top = Convert.ToInt32(this.Parent.Height / 2) - 110,
-                Left = Convert.ToInt32(this.Parent.Width / 2) - 160,
+                Top = Convert.ToInt32(Parent.Height / 2) - 110,
+                Left = Convert.ToInt32(Parent.Width / 2) - 160,
                 Parent = this
             };
 
@@ -220,21 +224,24 @@ namespace Futurez.Xrm.Tools
                     break;
             }
 
+            var selItemArray = new ListViewItem[listViewDocumentTemplates.SelectedItems.Count];
+            listViewDocumentTemplates.SelectedItems.CopyTo(selItemArray, 0);
             // build the bach list for delete 
             WorkAsync(new WorkAsyncInfo
             {
                 Message = message,
+                AsyncArgument = selItemArray.ToList<ListViewItem>(),
                 Work = (w, e) =>
                 {
                     try
                     {
                         w.ReportProgress(0, "Begin " + progressMessage);
-
-                        int templateCount = this.listViewDocumentTemplates.SelectedItems.Count;
+                        var selItems = e.Argument as List<ListViewItem>;
+                        int templateCount = selItems.Count;
                         int counter = 0;
 
                         // grab the list of selected template Ids
-                        foreach (ListViewItem item in this.listViewDocumentTemplates.SelectedItems)
+                        foreach (ListViewItem item in selItems)
                         {
                             counter++;
                             var template = item.Tag as DocumentTemplateEdit;
@@ -257,13 +264,13 @@ namespace Futurez.Xrm.Tools
                                     var updateRequest = new UpdateRequest() {
                                         Target = entityTarget
                                     };
-                                    this.Service.Execute(updateRequest);
+                                    Service.Execute(updateRequest);
                                     break;
                                 case BulkAction.Delete:
                                     var deleteRequest = new DeleteRequest() {
                                         Target = entityTarget.ToEntityReference()
                                     };
-                                    this.Service.Execute(deleteRequest);
+                                    Service.Execute(deleteRequest);
                                     break;
                             }
                         }
@@ -284,7 +291,6 @@ namespace Futurez.Xrm.Tools
                     // reload the list of templates 
                     LoadDocumentTemplates();
                 },
-                AsyncArgument = null,
                 IsCancelable = true,
                 MessageWidth = 340,
                 MessageHeight = 150
@@ -299,10 +305,10 @@ namespace Futurez.Xrm.Tools
         /// <param name="enabled"></param>
         private void ToggleMainControlsEnabled(bool enabled)
         {
-            this.tableLayoutPanelMain.Enabled = enabled;
-            this.toolStripMain.Enabled = enabled;
-            this.panelSplitter.Enabled = enabled;
-            this.labelInstructions.Enabled = enabled;
+            tableLayoutPanelMain.Enabled = enabled;
+            toolStripMain.Enabled = enabled;
+            panelSplitter.Enabled = enabled;
+            labelInstructions.Enabled = enabled;
         }
 
         /// <summary>
@@ -312,12 +318,12 @@ namespace Futurez.Xrm.Tools
         {
             var count = 0;
 
-            if (this.listViewDocumentTemplates.SelectedItems != null) {
-                count = this.listViewDocumentTemplates.SelectedItems.Count;
+            if (listViewDocumentTemplates.SelectedItems != null) {
+                count = listViewDocumentTemplates.SelectedItems.Count;
             }
 
             // now that items have been loaded, enable upload multiple
-            this.toolStripMenuItemUploadMultiple.Enabled = true;
+            toolStripMenuItemUploadMultiple.Enabled = true;
 
             bool singleSelect = (count == 1);
             bool multiSelect = (count > 0);
@@ -331,13 +337,13 @@ namespace Futurez.Xrm.Tools
             toolStripMenuItemDeactivateTemplates.Enabled = multiSelect;
             toolStripMenuItemActivateTemplates.Enabled = multiSelect;
 
-            this.propertyGridDetails.SelectedObject = null;
+            propertyGridDetails.SelectedObject = null;
 
             if (count == 1)
             {
-                var item = this.listViewDocumentTemplates.SelectedItems[0];
+                var item = listViewDocumentTemplates.SelectedItems[0];
                 var template = item.Tag as DocumentTemplateEdit;
-                this.propertyGridDetails.SelectedObject = template;
+                propertyGridDetails.SelectedObject = template;
             }
         }
         #endregion
@@ -374,12 +380,12 @@ namespace Futurez.Xrm.Tools
         {
             if (e.Control && (e.KeyCode == Keys.A))
             {
-                this.listViewDocumentTemplates.SuspendLayout();
+                listViewDocumentTemplates.SuspendLayout();
                 foreach (ListViewItem item in this.listViewDocumentTemplates.Items)
                 {
                     item.Selected = true;
                 }
-                this.listViewDocumentTemplates.ResumeLayout();
+                listViewDocumentTemplates.ResumeLayout();
             }
         }
         #endregion 
@@ -387,13 +393,13 @@ namespace Futurez.Xrm.Tools
         #region Toolbar Button Event Handlers
         private void toolButtonCloseTab_Click(object sender, EventArgs e)
         {
-            this.CloseTool();
+            CloseTool();
         }
 
         private void toolButtonLoadTemplates_Click(object sender, EventArgs e)
         {
             // make sure they want to reload
-            if (this.listViewDocumentTemplates.Items.Count > 0)
+            if (listViewDocumentTemplates.Items.Count > 0)
             {
                 if (MessageBox.Show("Clear the current list of Document Templates and reload from the server?", "Load Templates", MessageBoxButtons.YesNo) != DialogResult.Yes) {
                     return;
@@ -405,7 +411,7 @@ namespace Futurez.Xrm.Tools
 
         private void toolButtonDownload_Click(object sender, EventArgs e)
         {
-            if (this.listViewDocumentTemplates.SelectedItems.Count == 0)
+            if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
                 MessageBox.Show("Please select one or more templates to download.");
             }
@@ -421,7 +427,7 @@ namespace Futurez.Xrm.Tools
 
         private void toolStripMenuItemDeleteTemplates_Click(object sender, EventArgs e)
         {
-            if (this.listViewDocumentTemplates.SelectedItems.Count == 0)
+            if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
                 MessageBox.Show("Please select one or more templates to delete.");
             }
@@ -433,7 +439,7 @@ namespace Futurez.Xrm.Tools
 
         private void toolStripMenuItemDeactivateTemplates_Click(object sender, EventArgs e)
         {
-            if (this.listViewDocumentTemplates.SelectedItems.Count == 0)
+            if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
                 MessageBox.Show("Please select one or more templates to deactivate.");
             }
@@ -444,7 +450,7 @@ namespace Futurez.Xrm.Tools
         }
         private void toolStripMenuItemActivateTemplates_Click(object sender, EventArgs e)
         {
-            if (this.listViewDocumentTemplates.SelectedItems.Count == 0)
+            if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
                 MessageBox.Show("Please select one or more templates to activate.");
             }
@@ -456,7 +462,7 @@ namespace Futurez.Xrm.Tools
 
         private void toolStripMenuItemEditTemplate_Click(object sender, EventArgs e)
         {
-            if (this.listViewDocumentTemplates.SelectedItems.Count != 1)
+            if (listViewDocumentTemplates.SelectedItems.Count != 1)
             {
                 MessageBox.Show("Please select only one template to edit.");
             }
@@ -474,6 +480,13 @@ namespace Futurez.Xrm.Tools
         /// <param name="saveFolder"></param>
         private void DownloadDocumentTemplates(string saveFolder)
         {
+            var templateIds = new List<Guid>();
+            // grab the list of selected template Ids
+            foreach (ListViewItem item in this.listViewDocumentTemplates.SelectedItems) {
+                var template = item.Tag as DocumentTemplateEdit;
+                templateIds.Add(template.Id);
+            }
+
             WorkAsync(new WorkAsyncInfo
             {
                 Message = "Retrieving the Document Template Content...",
@@ -482,16 +495,11 @@ namespace Futurez.Xrm.Tools
                     try
                     {
                         var renameCount = 1;
-                        var templateIds = new List<Guid>();
-                        // grab the list of selected template Ids
-                        foreach (ListViewItem item in this.listViewDocumentTemplates.SelectedItems)
-                        {
-                            var template = item.Tag as DocumentTemplateEdit;
-                            templateIds.Add(template.Id);
-                        }
+
+                        var templateIdList = e.Argument as List<Guid>;
 
                         // retrieve the doc template contents
-                        var templates = DocumentTemplateEdit.GetDocumentTemplatesById(this.Service, templateIds, true);
+                        var templates = DocumentTemplateEdit.GetDocumentTemplatesById(Service, templateIdList, true);
 
                         byte[] bytesToSave;
                         var downloadFileName = "";
@@ -566,10 +574,9 @@ namespace Futurez.Xrm.Tools
                 {
                     // If progress has to be notified to user, use the following method:
                     // SetWorkingMessage("Downloading your templates now...");
-                    
                 },
                 PostWorkCallBack = e => { },
-                AsyncArgument = null,
+                AsyncArgument = templateIds,
                 IsCancelable = true,
                 MessageWidth = 340,
                 MessageHeight = 150
@@ -579,7 +586,7 @@ namespace Futurez.Xrm.Tools
         private void PerformUploadSingle() {
 
             // assuming only a single selection
-            ListViewItem item = this.listViewDocumentTemplates.SelectedItems[0];
+            ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
             var template = item.Tag as DocumentTemplateEdit;
 
             // grab the list of files to be uploaded
@@ -594,18 +601,24 @@ namespace Futurez.Xrm.Tools
                 {
                     try
                     {
-                        var fileUpload = new FileUpload(openDlg.FileName);
-                        if (template.Type != fileUpload.TemplateType) {
-                            MessageBox.Show("The extension of the file selected does not match the template selected.", 
-                                "Incorrect File Type", MessageBoxButtons.OK);
+                        var fileUpload = new FileUpload(openDlg.FileName, Service);
+                        if (template.Type != fileUpload.TemplateType)
+                        {
+                            MessageBox.Show("The extension of the file selected does not match the template selected.", "Incorrect File Type", MessageBoxButtons.OK);
                             return;
                         }
-                        else {
-                            var confirmMessage = "NOTE: This will overwrite the Content of the Document Template '" + template.Name + "'.  Please be sure that the Document Type and Associated Entity are correct.\n Would you like to continue?";
+                        else if (fileUpload.IsIgnored) {
+
+                            MessageBox.Show($"Unable to upload the selected file: {fileUpload.Note}", "Unable to upload", MessageBoxButtons.OK);
+                            return;
+                        }
+                        else
+                        {
+                            var confirmMessage = $"NOTE: This will overwrite the Content of the Document Template '{template.Name}'. Please be sure that the Document Type and Associated Entity are correct.\n Would you like to continue?";
                             if (MessageBox.Show(confirmMessage, "Confrim Upload", MessageBoxButtons.YesNo) == DialogResult.Yes)
                             {
                                 // get the file up there!
-                                ExecuteMethod(UploadFile, openDlg.FileName);
+                                ExecuteMethod(UploadFile, fileUpload);
                             }
                         }
                     }
@@ -637,7 +650,7 @@ namespace Futurez.Xrm.Tools
                     var templateList = new List<DocumentTemplateEdit>();
 
                     // grab the list of existing documents from the list view.
-                    foreach (ListViewItem listItem in this.listViewDocumentTemplates.Items)
+                    foreach (ListViewItem listItem in listViewDocumentTemplates.Items)
                     {
                         var template = (DocumentTemplateEdit)listItem.Tag;
                         templateNameList.Add(template.Name.ToLower() + "_" + template.Type);
@@ -651,7 +664,7 @@ namespace Futurez.Xrm.Tools
                     // iterate on the list of files.  match each file name and extension to the template name and type
                     foreach (var file in openDlg.FileNames)
                     {
-                        var fileUpload = new FileUpload(file);
+                        var fileUpload = new FileUpload(file, Service);
 
                         // if the file extension is not .docx nor .xlsx, ignore 
                         if (fileUpload.IsIgnored)
@@ -665,11 +678,13 @@ namespace Futurez.Xrm.Tools
                             var foundItems = templateNameList.FindAll(s => s == key);
 
                             // match on the file name and type
-                            if (foundItems.Count == 0) {
+                            if (foundItems.Count == 0)
+                            {
                                 // if the template is not found, then create
                                 createTemplate.Add(fileUpload);
                             }
-                            else {
+                            else
+                            {
                                 // only one instance 
                                 if (foundItems.Count == 1)
                                 {
@@ -688,11 +703,11 @@ namespace Futurez.Xrm.Tools
                     }
 
                     // present a summary, allow user to confirm/cancel
-                    _uploadSummary = new UploadMultipleSummary(this.Service, createTemplate, updateTemplate, ignoreTemplate) {
+                    _uploadSummary = new UploadMultipleSummary(Service, createTemplate, updateTemplate, ignoreTemplate) {
                         Parent = this
                     };
                     ResizeSummaryScreen();
-                    this.ParentForm.Resize += ParentForm_Resize;
+                    ParentForm.Resize += ParentForm_Resize;
 
                     // disable the main UI so they don't monkey with stuff
                     ToggleMainControlsEnabled(false);
@@ -716,13 +731,13 @@ namespace Futurez.Xrm.Tools
         /// </summary>
         private void ResizeSummaryScreen() {
 
-            var width = this.ParentForm.Width - 100;
-            var height = this.ParentForm.Height - 250;
+            var width = ParentForm.Width - 500;
+            var height = ParentForm.Height - 300;
 
             if (_uploadSummary != null)
             {
-                _uploadSummary.Top = Convert.ToInt32(this.ParentForm.Height / 2) - Convert.ToInt32(height / 2);
-                _uploadSummary.Left = Convert.ToInt32(this.ParentForm.Width / 2) - Convert.ToInt32(width / 2);
+                _uploadSummary.Top = Convert.ToInt32(ParentForm.Height / 2) - Convert.ToInt32(height / 2);
+                _uploadSummary.Left = Convert.ToInt32(ParentForm.Width / 2) - Convert.ToInt32(width / 2);
                 _uploadSummary.Height = height;
                 _uploadSummary.Width = width;
             }
@@ -739,7 +754,7 @@ namespace Futurez.Xrm.Tools
             _uploadSummary.Dispose();
             _uploadSummary = null;
 
-            this.ParentForm.Resize -= ParentForm_Resize;
+            ParentForm.Resize -= ParentForm_Resize;
 
             // disable the main UI so they don't monkey with stuff
             ToggleMainControlsEnabled(true);
@@ -762,7 +777,6 @@ namespace Futurez.Xrm.Tools
                             // don't use bulk update to trap errors and not overload the request
                             foreach (var file in updateTemplate)
                             {
-                                var contentBytes = File.ReadAllBytes(file.FullLocalPath);
                                 var request = new UpdateRequest()
                                 {
                                     Target = new Entity()
@@ -772,12 +786,12 @@ namespace Futurez.Xrm.Tools
                                         EntityState = EntityState.Changed
                                     }
                                 };
-                                request.Target.Attributes["content"] = Convert.ToBase64String(contentBytes);
+                                request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
 
                                 w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Updating template: " + file.TemplateName);
                                 // gather up error messages and continue
                                 try {
-                                    this.Service.Execute(request);
+                                    Service.Execute(request);
                                 }
                                 catch (Exception ex) {
                                     errorMessages.AppendFormat("Error updating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
@@ -786,7 +800,6 @@ namespace Futurez.Xrm.Tools
 
                             foreach (var file in createTemplate)
                             {
-                                var contentBytes = File.ReadAllBytes(file.FullLocalPath);
                                 var request = new CreateRequest() {
                                     Target = new Entity()
                                     {
@@ -797,13 +810,13 @@ namespace Futurez.Xrm.Tools
                                 request.Target.Attributes["name"] = file.TemplateName;
                                 request.Target.Attributes["documenttype"] = new OptionSetValue(file.TemplateTypeValue);
                                 request.Target.Attributes["description"] = "New " + file.TemplateType + " template. Source file: " + file.FileName;
-                                request.Target.Attributes["content"] = Convert.ToBase64String(contentBytes);
+                                request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
 
                                 w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Creating template: " + file.TemplateName);
 
                                 // gather up error messages and continue
                                 try {
-                                    this.Service.Execute(request);
+                                    Service.Execute(request);
                                 }
                                 catch (Exception ex) {
                                     errorMessages.AppendFormat("Error creating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
@@ -839,19 +852,20 @@ namespace Futurez.Xrm.Tools
         /// Upload a single document template
         /// </summary>
         /// <param name="fileName"></param>
-        private void UploadFile(string fileName)
+        private void UploadFile(FileUpload fileUpload)
         {
-            var contentBytes = File.ReadAllBytes(fileName);
-
-            ListViewItem item = this.listViewDocumentTemplates.SelectedItems[0];
+            ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
             var template = item.Tag as DocumentTemplateEdit;
 
             var templateId = template.Id;
+
             WorkAsync(new WorkAsyncInfo
             {
                 Message = "Uploading your template",
                 Work = (w, e) =>
                 {
+                    var fileToUpload = e.Argument as FileUpload;
+
                     var request = new UpdateRequest()
                     {
                         Target = new Entity() {
@@ -860,21 +874,18 @@ namespace Futurez.Xrm.Tools
                             EntityState = EntityState.Changed
                         }
                     };
-                    request.Target.Attributes["content"] = Convert.ToBase64String(contentBytes);
+                    request.Target.Attributes["content"] = Convert.ToBase64String(fileToUpload.FileContents);
 
-                    var response = this.Service.Execute(request);
+                    var response = Service.Execute(request);
                 },
                 ProgressChanged = e =>
                 {
-                    // If progress has to be notified to user, use the following method:
-                    // SetWorkingMessage("Message to display");
                 },
                 PostWorkCallBack = e =>
                 {
-                    // SetWorkingMessage("Your Document Template has been updated.");
                     LoadDocumentTemplates();
                 },
-                AsyncArgument = null,
+                AsyncArgument = fileUpload,
                 IsCancelable = true,
                 MessageWidth = 340,
                 MessageHeight = 150
@@ -896,7 +907,7 @@ namespace Futurez.Xrm.Tools
 
         private void toolStripMenuItemUploadSingle_Click(object sender, EventArgs e)
         {
-            if (this.listViewDocumentTemplates.SelectedItems.Count != 1) {
+            if (listViewDocumentTemplates.SelectedItems.Count != 1) {
                 MessageBox.Show("Please select only one template to update.");
             }
             else {
@@ -913,11 +924,24 @@ namespace Futurez.Xrm.Tools
 
         }
 
+        /// <summary>
+        /// This event occurs when the connection has been updated in <see cref="XrmToolBox"/>
+        /// </summary>
+        public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
+        {
+            base.UpdateConnection(newService, detail, actionName, parameter);
+
+            LogInfo("Connection has changed to: {0}", detail.WebApplicationUrl);
+
+            // load the document templates again now that the connection has changed
+            LoadDocumentTemplates();
+        }
+
         #region instructions helpers
 
         private void labelInstructions_MouseHover(object sender, EventArgs e)
         {
-            this.toolTipInstructions.Show("Double click the instructions to expand.", labelInstructions);
+            toolTipInstructions.Show("Double click the instructions to expand.", labelInstructions);
         }
 
         private void labelInstructions_DoubleClick(object sender, EventArgs e)

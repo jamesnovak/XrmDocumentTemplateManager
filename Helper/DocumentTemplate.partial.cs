@@ -1,11 +1,14 @@
-﻿using Microsoft.Xrm.Sdk;
-using Microsoft.Xrm.Sdk.Query;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
+using DocumentFormat.OpenXml.Packaging;
+
+using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Messages;
+using Microsoft.Xrm.Sdk.Query;
 
 namespace Futurez.Entities
 {
@@ -14,35 +17,37 @@ namespace Futurez.Entities
     {
         public DocumentTemplateEdit(Entity template)
         {
-            this.Id = template.Id;
-            this.Name = template.GetAttribValue<string>("name");
-            this.Description = template.GetAttribValue<string>("description");
-            this.Type = template.GetFormattedAttribValue("documenttype");
-            this.TypeValue = template.GetAttribValue<OptionSetValue>("documenttype").Value;
-            this.AssocaitedEntity = template.GetFormattedAttribValue("associatedentitytypecode");
-            this.Status = template.GetFormattedAttribValue("status");
+            Id = template.Id;
+            Name = template.GetAttribValue<string>("name");
+            Description = template.GetAttribValue<string>("description");
+            Type = template.GetFormattedAttribValue("documenttype");
+            TypeValue = template.GetAttribValue<OptionSetValue>("documenttype").Value;
+            AssociatedEntity = template.GetFormattedAttribValue("associatedentitytypecode");
+            AssociatedEntityLogicalName = template.GetAttribValue<string>("associatedentitytypecode");
+
+            Status = template.GetFormattedAttribValue("status");
 
             var entityRef = template.GetAttribValue<EntityReference>("createdby");
-            this.CreatedBy = (entityRef != null) ? entityRef.Name : null;
+            CreatedBy = (entityRef != null) ? entityRef.Name : null;
 
             var dt = template.GetAttribValue<DateTime?>("createdon");
             if (dt.HasValue) {
-                this.CreatedOn = dt.Value.ToLocalTime();
+                CreatedOn = dt.Value.ToLocalTime();
             }
 
             entityRef = template.GetAttribValue<EntityReference>("modifiedby");
-            this.ModifiedBy = (entityRef != null) ? entityRef.Name : null;
+            ModifiedBy = (entityRef != null) ? entityRef.Name : null;
 
             dt = template.GetAttribValue<DateTime?>("modifiedon");
             if (dt.HasValue) {
-                this.ModifiedOn = dt.Value.ToLocalTime();
+                ModifiedOn = dt.Value.ToLocalTime();
             }
 
-            this.EntityLogicalName = template.LogicalName;
-            this.TemplateScope = (template.LogicalName == "documenttemplate") ? "System" : "Personal";
+            EntityLogicalName = template.LogicalName;
+            TemplateScope = (template.LogicalName == "documenttemplate") ? "System" : "Personal";
 
             var content = template.GetAttribValue<string>("content");
-            this.Content = (content == null) ? null : Convert.FromBase64String(content);
+            Content = (content == null) ? null : Convert.FromBase64String(content);
         }
         #region Attributes
         [Description("Entity Logical Name")]
@@ -69,10 +74,16 @@ namespace Futurez.Entities
         [Category("Locked")]
         public string Status { get; private set; }
 
-        [DisplayName("Associated Entity Type Code")]
-        [Description("Entity to which this Document Template is assocaited")]
+        [DisplayName("Associated Entity SchemaName")]
+        [Description("Entity SchemaName to which this Document Template is assocaited")]
         [Category("Locked")]
-        public string AssocaitedEntity { get; private set; }
+        [Browsable(false)]
+        public string AssociatedEntityLogicalName { get; private set; }
+
+        [DisplayName("Associated Entity Name")]
+        [Description("Name of the Entity to which this Document Template is assocaited")]
+        [Category("Locked")]
+        public string AssociatedEntity { get; private set; }
 
         [DisplayName("Created On")]
         [Description("Date/Time on which this Document Template was created")]
@@ -188,6 +199,7 @@ namespace Futurez.Entities
 
             return templates;
         }
+
         #endregion
     }
 }
