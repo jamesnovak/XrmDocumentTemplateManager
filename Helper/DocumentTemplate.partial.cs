@@ -1,13 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Linq;
-
-using DocumentFormat.OpenXml.Packaging;
-
+using Futurez.Xrm.Tools;
 using Microsoft.Xrm.Sdk;
-using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Query;
 
 namespace Futurez.Entities
@@ -48,6 +43,11 @@ namespace Futurez.Entities
 
             var content = template.GetAttribValue<string>("content");
             Content = (content == null) ? null : Convert.FromBase64String(content);
+
+            var ext = TypeValue == 1 ? Constants.FILE_EXT_EXCEL : Constants.FILE_EXT_WORD;
+
+            // make sure we have unique names
+            FileName = Name + ext;
         }
         #region Attributes
         [Description("Entity Logical Name")]
@@ -64,6 +64,10 @@ namespace Futurez.Entities
         [Description("Document Template Name")]
         [Category("General")]
         public string Name { get; private set; }
+
+        [Description("Document Template Filename")]
+        [Category("General")]
+        public string FileName { get; private set; }
 
         [Description("Description for this Document Template")]
         [Category("General")]
@@ -136,70 +140,40 @@ namespace Futurez.Entities
 
         #region Helper Methods 
         /// <summary>
-        ///  Retrieve all System document templates 
-        /// </summary>
-        /// <returns></returns>
-        public static List<DocumentTemplateEdit> GetAllSystemTemplates(IOrganizationService service)
-        {
-            var templates = new List<DocumentTemplateEdit>();
-
-            var fetchXml = "<fetch>" +
-                  "<entity name='documenttemplate'> " +
-                    "<attribute name='status' /> " +
-                    "<attribute name='associatedentitytypecode' /> " +
-                    "<attribute name='name' /> " +
-                    "<attribute name='documenttypename' /> " +
-                    "<attribute name='associatedentitytypecodename' /> " +
-                    "<attribute name='organizationidname' /> " +
-                    "<attribute name='statusname' /> " +
-                    "<attribute name='documenttype' /> " +
-                    "<attribute name='modifiedby' /> " +
-                    "<attribute name='modifiedbyname' /> " +
-                    "<attribute name='modifiedon' /> " +
-                    "<attribute name='createdby' /> " +
-                    "<attribute name='createdbyname' /> " +
-                    "<attribute name='createdon' /> " +
-                    "<attribute name='organizationid' /> " +
-                    "<attribute name='documenttemplateid' /> " +
-                    "<attribute name = 'description' /> " +
-                  "</entity> " +
-                "</fetch> ";
-
-            var results = service.RetrieveMultiple(new FetchExpression(fetchXml));
-
-            foreach (var entity in results.Entities)
-            {
-                templates.Add(new DocumentTemplateEdit(entity));
-            }
-            return templates;
-        }
-
-        /// <summary>
         /// Helper method to retrieve system document templates by Id 
         /// </summary>
         /// <param name="service"></param>
         /// <param name="templateIds"></param>
         /// <param name="includeContent"></param>
         /// <returns></returns>
-        public static EntityCollection GetDocumentTemplatesById(IOrganizationService service, List<Guid> templateIds, bool includeContent)
+        public static List<DocumentTemplateEdit> GetDocumentTemplates(IOrganizationService service, List<Guid> templateIds=null, bool includeContent=false)
         {
+            var templates = new List<DocumentTemplateEdit>();
+
+            var columns = new string[] {
+                "name", "documenttemplateid", "status", "associatedentitytypecode", "documenttype", "modifiedby", "modifiedon", "createdby", "createdon", "description"
+            };
             var query = new QueryExpression() {
                 EntityName = "documenttemplate",
-                ColumnSet = new ColumnSet("name", "documenttype", "documenttemplateid", "status"),
-                Criteria = new FilterExpression(LogicalOperator.And) {
-                    Conditions = { new ConditionExpression("documenttemplateid", ConditionOperator.In, templateIds) }
-                }
+                ColumnSet = new ColumnSet(columns),
+                Criteria = new FilterExpression(LogicalOperator.And)
             };
 
             if (includeContent) {
                 query.ColumnSet.AddColumn("content");
             }
 
-            var templates = service.RetrieveMultiple(query);
+            if (templateIds != null) {
+                query.Criteria.AddCondition(new ConditionExpression("documenttemplateid", ConditionOperator.In, templateIds));
+            }
 
+            var results = service.RetrieveMultiple(query);
+
+            foreach (var entity in results.Entities) {
+                templates.Add(new DocumentTemplateEdit(entity));
+            }
             return templates;
         }
-
         #endregion
     }
 }

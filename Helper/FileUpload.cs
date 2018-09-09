@@ -31,16 +31,15 @@ namespace Futurez.Entities
                     GetETNAndOTCFromDocument();
 
                     // if we don't have any ETC in the file, then we can't upload it
-                    if (EntityTypeName == null)
-                    {
+                    if (EntityTypeName == null) {
                         IsIgnored = true;
                         Note = "Unable to find Entity Type Name within the file contents. This does not appear to be a valid Word Template.";
                     }
-
-                    // get the OTC from the document and the target system
-                    TargetOTC = GetTypeCode(EntityTypeName, service);
-                    UpdateOTCCodes();
-
+                    else {
+                        // get the OTC from the document and the target system
+                        TargetOTC = GetTypeCode(EntityTypeName, service);
+                        UpdateOTCCodes();
+                    }
                     break;
                 case Constants.FILE_EXT_EXCEL:
                     TemplateType = Constants.TEMPL_TYPE_EXCEL;
@@ -83,44 +82,50 @@ namespace Futurez.Entities
             const string rootPath = @"urn:microsoft-crm/document-template/";
 
             string xmlBody = null;
+            try {
+                // open the file and read the contents 
+                using (var ms = new MemoryStream(this.FileContents)) {
+                    // create a word doc from stream
+                    WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true);
+                    OpenXmlPart mainDocPart = wordDoc.MainDocumentPart;
 
-            // open the file and read the contents 
-            using (var ms = new MemoryStream(this.FileContents)) {
-                // create a word doc from stream
-                WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, true);
-                OpenXmlPart mainDocPart = wordDoc.MainDocumentPart;
+                    var custParts = wordDoc
+                        .MainDocumentPart
+                        .Parts
+                        .Where(p => p.OpenXmlPart is CustomXmlPart)
+                        .Select(c => (c.OpenXmlPart as CustomXmlPart).CustomXmlPropertiesPart);
 
-                var custParts = wordDoc
-                    .MainDocumentPart
-                    .Parts
-                    .Where(p => p.OpenXmlPart is CustomXmlPart)
-                    .Select(c => (c.OpenXmlPart as CustomXmlPart).CustomXmlPropertiesPart);
+                    foreach (var part in custParts) {
+                        if (part.RootElement.InnerXml.Contains(rootPath)) {
+                            xmlBody = part.RootElement.InnerXml;
+                            break;
+                        }
+                    }
+                }
 
-                foreach (var part in custParts) {
-                    if (part.RootElement.InnerXml.Contains(rootPath)) {
-                        xmlBody = part.RootElement.InnerXml;
-                        break;
+                if (xmlBody != null) {
+                    // get the ETC from the first instance we can find of the ds:uri attribute.
+                    var ns = @"{http://schemas.openxmlformats.org/officeDocument/2006/customXml}";
+                    using (var textStream = new StringReader(xmlBody)) {
+                        XDocument doc = XDocument.Load(textStream);
+                        XAttribute attrib = doc
+                            .Descendants($"{ns}schemaRef")
+                            .Attributes($"{ns}uri")
+                            .Where<XAttribute>(a => a.Value.StartsWith(rootPath))
+                            .FirstOrDefault();
+
+                        var etn_otc = attrib.Value.Substring(rootPath.Length).Split('/');
+
+                        EntityTypeName = etn_otc[0];
+                        ObjectTypeCode = int.Parse(etn_otc[1]);
                     }
                 }
             }
-
-            if (xmlBody != null) {
-                // get the ETC from the first instance we can find of the ds:uri attribute.
-                var ns = @"{http://schemas.openxmlformats.org/officeDocument/2006/customXml}";
-                using (var textStream = new StringReader(xmlBody)) {
-                    XDocument doc = XDocument.Load(textStream);
-                    XAttribute attrib = doc
-                        .Descendants($"{ns}schemaRef")
-                        .Attributes($"{ns}uri")
-                        .Where<XAttribute>(a => a.Value.StartsWith(rootPath))
-                        .FirstOrDefault();
-
-                    var etn_otc = attrib.Value.Substring(rootPath.Length).Split('/');
-
-                    EntityTypeName = etn_otc[0];
-                    ObjectTypeCode = int.Parse(etn_otc[1]);
-                }
+            catch (NullReferenceException) {
+                IsIgnored = true;
+                Note = "This does not appear to be a valid Word Document Template";
             }
+
         }
 
         /// <summary>

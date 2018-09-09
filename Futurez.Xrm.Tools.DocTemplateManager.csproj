@@ -154,10 +154,14 @@
     <Compile Include="Helper\ZipBuilder.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
+    <None Include="app.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="NuGet\Build - DocTemplteManager.cmd" />
     <None Include="NuGet\Package\Futurez.Xrm.Tools.DocTemplateManager.nuspec" />
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Images\activate_template.png" />
@@ -191,9 +195,12 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(TargetDir)$(TargetFileName)" "%25DEVTOOL%25\CRM Tools\XrmToolBox\Plugins\" /Y
-xcopy "$(TargetDir)$(TargetName).pdb" "%25DEVTOOL%25\CRM Tools\XrmToolBox\Plugins\" /Y
-xcopy "$(TargetDir)$(TargetFileName)" "$(ProjectDir)NuGet\Package\lib\net47\Plugins\" /Y</PostBuildEvent>
+    <PostBuildEvent>IF NOT EXIST merged mkdir merged
+"$(SolutionDir)packages\ILMerge.2.14.1208\tools\ILMerge.exe" /targetplatform:v4,"C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7" /lib:"C:\Windows\Microsoft.Net\Framework64\v4.0.30319" /log:ilmerge.log /out:"$(TargetDir)Merged\$(TargetFileName)" "$(TargetFileName)" "$(TargetDir)DocumentFormat.OpenXml.dll"
+
+xcopy "$(TargetDir)merged\$(TargetFileName)" "%25onedrive%25\Development\CRM Tools\XrmToolBox\Plugins\" /Y
+xcopy "$(TargetDir)merged\$(TargetName).pdb" "%25onedrive%25\Development\CRM Tools\XrmToolBox\Plugins\" /Y
+xcopy "$(TargetDir)merged\$(TargetFileName)" "$(ProjectDir)NuGet\Package\lib\net47\Plugins\" /Y</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

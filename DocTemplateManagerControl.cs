@@ -52,7 +52,7 @@ namespace Futurez.Xrm.Tools
                     try
                     {
                         w.ReportProgress(0, "Loading Templates from CRM");
-                        e.Result = DocumentTemplateEdit.GetAllSystemTemplates(Service);
+                        e.Result = DocumentTemplateEdit.GetDocumentTemplates(Service);
                     }
                     catch (Exception ex)
                     {
@@ -499,26 +499,20 @@ namespace Futurez.Xrm.Tools
                         var templateIdList = e.Argument as List<Guid>;
 
                         // retrieve the doc template contents
-                        var templates = DocumentTemplateEdit.GetDocumentTemplatesById(Service, templateIdList, true);
+                        var templates = DocumentTemplateEdit.GetDocumentTemplates(Service, templateIdList, true);
 
                         byte[] bytesToSave;
                         var downloadFileName = "";
                         Dictionary<string, byte[]> files = new Dictionary<string, byte[]>();
-                        var fileCount = templates.Entities.Count;
+                        var fileCount = templates.Count;
 
-                        foreach (Entity template in templates.Entities)
+                        foreach (var template in templates)
                         {
-                            var docTemplate = new DocumentTemplateEdit(template);
+                            var folder = template.Status + "\\" + template.Type + "\\";
 
-                            var name = docTemplate.Name;
-                            var ext =  docTemplate.TypeValue == 1
-                                        ? Constants.FILE_EXT_EXCEL :
-                                        Constants.FILE_EXT_WORD;
+                            var fileName = template.FileName;
+                            var ext = Path.GetExtension(template.FileName);
 
-                            // make sure we have unique names
-                            var fileName = name + ext;
-                            var folder = docTemplate.Status + "\\" + docTemplate.Type + "\\";
-                            
                             // if we have more than one file, add a folder for the status
                             if (fileCount > 1) {
                                 fileName = folder + fileName;
@@ -527,15 +521,15 @@ namespace Futurez.Xrm.Tools
                             renameCount = 1;
                             while (files.ContainsKey(fileName)) {
                                 if (fileCount > 1) {
-                                    fileName = folder + name + " (" + (renameCount++).ToString() + ")" + ext;
+                                    fileName = folder + template.Name + " (" + (renameCount++).ToString() + ")" + ext;
                                 }
                                 else {
-                                    fileName = name + " (" + (renameCount++).ToString() + ")" + ext;
+                                    fileName = template.Name + " (" + (renameCount++).ToString() + ")" + ext;
                                 }
                             }
 
                             // add the file to the list for download.
-                            files.Add(fileName, docTemplate.Content);
+                            files.Add(fileName, template.Content);
                         }
 
                         // if only one file was selected, save just that... otherwise, package things up in a zip!
@@ -588,7 +582,7 @@ namespace Futurez.Xrm.Tools
             // assuming only a single selection
             ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
             var template = item.Tag as DocumentTemplateEdit;
-
+            
             // grab the list of files to be uploaded
             using (var openDlg = new OpenFileDialog() {
                 InitialDirectory = Path.GetPathRoot(Environment.SystemDirectory),

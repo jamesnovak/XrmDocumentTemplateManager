@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Futurez Consulting, LLC")]
 [assembly: AssemblyProduct("Futurez.Xrm.Tools.DocTemplateManager")]
-[assembly: AssemblyCopyright("Copyright © Futurez Consulting 2017")]
+[assembly: AssemblyCopyright("Copyright © Futurez Consulting 2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.2018.6.1")]
-[assembly: AssemblyFileVersion("1.2018.6.1")]
+[assembly: AssemblyVersion("1.2018.9.1")]
+[assembly: AssemblyFileVersion("1.2018.9.1")]
