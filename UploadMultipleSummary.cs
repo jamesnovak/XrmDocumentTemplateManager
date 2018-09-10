@@ -64,7 +64,7 @@ namespace Futurez.Xrm.Tools
             };
 
             lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, file.TemplateType) { Tag = "Template Type", Name = "Template Type" });
-            lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, file.TemplateType) { Tag = "Template Name", Name = "Template Name" });
+            lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, file.TemplateName) { Tag = "Template Name", Name = "Template Name" });
             lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, file.Note) { Tag = "Note", Name = "Note" });
 
             var newItem = this.listViewFileUploadSummary.Items.Add(lvItem);

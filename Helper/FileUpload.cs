@@ -37,8 +37,14 @@ namespace Futurez.Entities
                     }
                     else {
                         // get the OTC from the document and the target system
-                        TargetOTC = GetTypeCode(EntityTypeName, service);
-                        UpdateOTCCodes();
+                        TargetOTC = GetTypeCode(EntityTypeName, service, out string errorMessage);
+                        if (TargetOTC == -1) {
+                            IsIgnored = true;
+                            Note = errorMessage;
+                        }
+                        else {
+                            UpdateOTCCodes();
+                        }
                     }
                     break;
                 case Constants.FILE_EXT_EXCEL:
@@ -211,8 +217,10 @@ namespace Futurez.Entities
         /// <param name="entityName">name of the entity</param>
         /// <param name="service">target organization service</param>
         /// <returns>entity type code</returns>
-        private static int GetTypeCode(string entityName, IOrganizationService service)
+        private static int GetTypeCode(string entityName, IOrganizationService service, out string errorMessage)
         {
+            errorMessage = null;
+            
             // save as static collection to avoid round trips
             if (_objectTypeCodes == null) {
                 _objectTypeCodes = new Dictionary<string, int>();
@@ -224,9 +232,15 @@ namespace Futurez.Entities
                 request.LogicalName = entityName;
 
                 // Retrieve the MetaData, OTC for the entity name
-                RetrieveEntityResponse response = (RetrieveEntityResponse)service.Execute(request);
-                _objectTypeCodes.Add(entityName, response.EntityMetadata.ObjectTypeCode.Value);
-
+                // cheesy... catch the exception if the ETN is not found
+                try {
+                    RetrieveEntityResponse response = (RetrieveEntityResponse)service.Execute(request);
+                    _objectTypeCodes.Add(entityName, response.EntityMetadata.ObjectTypeCode.Value);
+                }
+                catch {
+                    errorMessage = $"Error occurred locating Entity Type {entityName} on the current instance";
+                    return -1;
+                }
             }
             return _objectTypeCodes[entityName];
         }
