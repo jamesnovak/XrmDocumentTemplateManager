@@ -803,7 +803,7 @@ namespace Futurez.Xrm.Tools
                                 };
                                 request.Target.Attributes["name"] = file.TemplateName;
                                 request.Target.Attributes["documenttype"] = new OptionSetValue(file.TemplateTypeValue);
-                                request.Target.Attributes["description"] = "New " + file.TemplateType + " template. Source file: " + file.FileName;
+                                request.Target.Attributes["description"] = LimitDescription("New " + file.TemplateType + " template. Source file: " + file.FileName);
                                 request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
 
                                 w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Creating template: " + file.TemplateName);
@@ -842,6 +842,12 @@ namespace Futurez.Xrm.Tools
                 });
             }
         }
+        /// <summary>
+        /// Shorten description string if over 100 char
+        /// </summary>
+        /// <param name="description"></param>
+        public static string LimitDescription(string description) => description.Length > 100 ? description : description.Substring(0, 100);
+
         /// <summary>
         /// Upload a single document template
         /// </summary>
