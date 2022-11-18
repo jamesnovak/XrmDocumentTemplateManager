@@ -393,18 +393,25 @@ namespace Futurez.Xrm.Tools
 
         private void listViewDocumentTemplates_ColumnClick(object sender, ColumnClickEventArgs e)
         {
-            listViewDocumentTemplates.SuspendLayout();
-
-            if (e.Column == int.Parse(listViewDocumentTemplates.Tag.ToString()))
+            var lv = (ListView)sender;
+            if (lv.ListViewItemSorter is ListViewItemComparer lvic)
             {
-                listViewDocumentTemplates.Sorting = ((listViewDocumentTemplates.Sorting == SortOrder.Ascending) ? SortOrder.Descending : SortOrder.Ascending);
-                listViewDocumentTemplates.ListViewItemSorter = new ListViewItemComparer(e.Column, listViewDocumentTemplates.Sorting);
-                return;
+                if (lvic.Column != e.Column)
+                {
+                    lvic.Column = e.Column;
+                    lvic.Order = SortOrder.Ascending;
+                }
+                else
+                {
+                    lvic.Order = lvic.Order == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;
+                }
             }
-            listViewDocumentTemplates.Tag = e.Column;
-            listViewDocumentTemplates.ListViewItemSorter = new ListViewItemComparer(e.Column, SortOrder.Ascending);
+            else
+            {
+                lv.ListViewItemSorter = new ListViewItemComparer(e.Column, SortOrder.Ascending);
+            }
 
-            listViewDocumentTemplates.ResumeLayout();
+            lv.Sort();
         }
 
         private void listViewDocumentTemplates_DoubleClick(object sender, EventArgs e)

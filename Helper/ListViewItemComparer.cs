@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Windows.Forms;
 
 namespace Futurez.Xrm.Tools
@@ -44,6 +45,18 @@ namespace Futurez.Xrm.Tools
 
         public int Compare(ListViewItem x, ListViewItem y)
         {
+            if (DateTime.TryParse(x.SubItems[this.col].Text, out DateTime dtx))
+            {
+                if (DateTime.TryParse(y.SubItems[this.col].Text, out DateTime dty))
+                {
+                    if (this.innerOrder == SortOrder.Ascending)
+                    {
+                        return dtx > dty ? 1 : -1;
+                    }
+                    return dtx < dty ? 1 : -1;
+                }
+            }
+
             if (this.innerOrder == SortOrder.Ascending)
             {
                 return string.Compare(x.SubItems[this.col].Text, y.SubItems[this.col].Text);
