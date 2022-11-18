@@ -4,14 +4,14 @@ using System.Windows.Forms;
 namespace Futurez.Xrm.Tools
 {
     /// <summary>
-    /// ListView Item Compare taken from XrmToolbox: 
+    /// ListView Item Compare taken from XrmToolbox:
     /// https://github.com/MscrmTools/XrmToolBox/blob/master/Plugins/MsCrmTools.MetadataDocumentGenerator/Helper/ListViewItemComparer.cs
     /// </summary>
     internal class ListViewItemComparer : IComparer
     {
-        private readonly int col;
+        private int col;
 
-        private readonly SortOrder innerOrder;
+        private SortOrder innerOrder;
 
         public ListViewItemComparer()
         {
@@ -23,6 +23,18 @@ namespace Futurez.Xrm.Tools
         {
             this.col = column;
             this.innerOrder = order;
+        }
+
+        public int Column
+        {
+            get { return col; }
+            set { col = value; }
+        }
+
+        public SortOrder Order
+        {
+            get { return innerOrder; }
+            set { innerOrder = value; }
         }
 
         public int Compare(object x, object y)

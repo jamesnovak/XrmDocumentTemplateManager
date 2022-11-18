@@ -1,32 +1,31 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Windows.Forms;
-using System.Collections.Generic;
-
+﻿using Futurez.Entities;
+using McTools.Xrm.Connection;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
-
-using XrmToolBox.Extensibility;
-using XrmToolBox.Extensibility.Interfaces;
-using XrmToolBox.Extensibility.Args;
-
-using Futurez.Entities;
+using Microsoft.Xrm.Sdk.Metadata;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
-using McTools.Xrm.Connection;
+using System.Windows.Forms;
+using XrmToolBox.Extensibility;
+using XrmToolBox.Extensibility.Args;
+using XrmToolBox.Extensibility.Interfaces;
 
 namespace Futurez.Xrm.Tools
 {
-    enum BulkAction
+    internal enum BulkAction
     {
         Activate = 1,
         Deactivate,
         Delete
     };
+
     public partial class DocTemplateManagerControl : PluginControlBase, IStatusBarMessenger
     {
-        EditTemplateControl _editControl = null;
-        UploadMultipleSummary _uploadSummary = null;
+        private EditTemplateControl _editControl = null;
+        private UploadMultipleSummary _uploadSummary = null;
 
         public DocTemplateManagerControl()
         {
@@ -35,10 +34,36 @@ namespace Futurez.Xrm.Tools
 
         public event EventHandler<StatusBarMessageEventArgs> SendMessageToStatusBar;
 
+        /// <summary>
+        /// This event occurs when the connection has been updated in <see cref="XrmToolBox"/>
+        /// </summary>
+        public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
+        {
+            base.UpdateConnection(newService, detail, actionName, parameter);
 
-        private void LoadDocumentTemplates() {
+            LogInfo("Connection has changed to: {0}", detail.WebApplicationUrl);
+
+            // load the document templates again now that the connection has changed
+            LoadDocumentTemplates();
+        }
+
+        private void EditControl_OnComplete(bool userCanceled, EventArgs e)
+        {
+            _editControl.Dispose();
+            _editControl = null;
+
+            if (!userCanceled)
+            {
+                ExecuteMethod(LoadDocumentTemplates);
+            }
+            ToggleMainControlsEnabled(true);
+        }
+
+        private void LoadDocumentTemplates()
+        {
             LoadDocumentTemplates(null);
         }
+
         /// <summary>
         /// Load all of the system document templates from the current connection
         /// </summary>
@@ -70,7 +95,7 @@ namespace Futurez.Xrm.Tools
                     // load the templates
                     LoadTemplatesComplete(templates);
 
-                    // now update the UI with the new selection 
+                    // now update the UI with the new selection
                     UpdateControlsForSelection();
 
                     // invoke the callback if passed
@@ -120,7 +145,147 @@ namespace Futurez.Xrm.Tools
             listViewDocumentTemplates.ResumeLayout();
         }
 
-        #region Document Template related methods 
+        #region Document Template related methods
+
+        private void PerformActivateTemplates()
+        {
+            var confirmMessage = "Would you like to activate the selected templates in CRM?";
+            if (MessageBox.Show(confirmMessage, "Confrim Activate Template(s)", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                // get the file up there!
+                ExecuteMethod(PerformBulkActionTemplates, BulkAction.Activate);
+            }
+        }
+
+        /// <summary>
+        /// Shared method that will perform bulk actions for Delete, Activate/Deactivate
+        /// </summary>
+        /// <param name="action"></param>
+        private void PerformBulkActionTemplates(BulkAction action)
+        {
+            var message = "";
+            var progressMessage = "";
+            switch (action)
+            {
+                case BulkAction.Activate:
+                    message = "Activating selected Document Templates";
+                    progressMessage = "activating Document Templates in CRM";
+                    break;
+
+                case BulkAction.Deactivate:
+                    message = "Deactivating selected Document Templates";
+                    progressMessage = "deactivating Document Templates in CRM";
+                    break;
+
+                case BulkAction.Delete:
+                    message = "Deleting selected Document Templates";
+                    progressMessage = "deleting Document Templates from CRM";
+                    break;
+            }
+
+            var selItemArray = new ListViewItem[listViewDocumentTemplates.SelectedItems.Count];
+            listViewDocumentTemplates.SelectedItems.CopyTo(selItemArray, 0);
+            // build the bach list for delete
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = message,
+                AsyncArgument = selItemArray.ToList<ListViewItem>(),
+                Work = (w, e) =>
+                {
+                    try
+                    {
+                        w.ReportProgress(0, "Begin " + progressMessage);
+                        var selItems = e.Argument as List<ListViewItem>;
+                        int templateCount = selItems.Count;
+                        int counter = 0;
+
+                        // grab the list of selected template Ids
+                        foreach (ListViewItem item in selItems)
+                        {
+                            counter++;
+                            var template = item.Tag as DocumentTemplateEdit;
+                            var entityTarget = new Entity(template.EntityLogicalName, template.Id)
+                            {
+                                EntityState = EntityState.Changed
+                            };
+
+                            w.ReportProgress(Convert.ToInt32(counter / templateCount) * 100, "Template: " + template.Name);
+
+                            switch (action)
+                            {
+                                case BulkAction.Activate:
+                                case BulkAction.Deactivate:
+                                    if (action == BulkAction.Activate)
+                                    {
+                                        entityTarget["status"] = false;
+                                    }
+                                    else
+                                    {
+                                        entityTarget["status"] = true;
+                                    }
+                                    var updateRequest = new UpdateRequest()
+                                    {
+                                        Target = entityTarget
+                                    };
+                                    Service.Execute(updateRequest);
+                                    break;
+
+                                case BulkAction.Delete:
+                                    var deleteRequest = new DeleteRequest()
+                                    {
+                                        Target = entityTarget.ToEntityReference()
+                                    };
+                                    Service.Execute(deleteRequest);
+                                    break;
+                            }
+                        }
+
+                        w.ReportProgress(0, "Done " + progressMessage);
+                        w.ReportProgress(0, "");
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("An error occured with one or more templates:\n" + ex.Message);
+                    }
+                },
+                ProgressChanged = e =>
+                {
+                    SendMessageToStatusBar?.Invoke(this, new StatusBarMessageEventArgs(e.ProgressPercentage, e.UserState.ToString()));
+                },
+                PostWorkCallBack = e =>
+                {
+                    // reload the list of templates
+                    LoadDocumentTemplates();
+                },
+                IsCancelable = true,
+                MessageWidth = 340,
+                MessageHeight = 150
+            });
+        }
+
+        private void PerformDeactivateTemplates()
+        {
+            var confirmMessage = "Would you like to deactivate the selected templates in CRM?";
+            if (MessageBox.Show(confirmMessage, "Confrim Deactivate Template(s)", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                // get the file up there!
+                ExecuteMethod(PerformBulkActionTemplates, BulkAction.Deactivate);
+            }
+        }
+
+        /// <summary>
+        /// Delete the templates selected in the list
+        /// </summary>
+        private void PerformDeleteTemplates()
+        {
+            var confirmMessage = "Would you like to delete the selected templates from CRM?\nNOTE: THIS ACTION CANNOT BE UNDONE.";
+            if (MessageBox.Show(confirmMessage, "Confrim Delete Template(s)", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                // get the file up there!
+                ExecuteMethod(PerformBulkActionTemplates, BulkAction.Delete);
+            }
+        }
+
         /// <summary>
         /// Download the document templates selected in the list
         /// </summary>
@@ -167,138 +332,10 @@ namespace Futurez.Xrm.Tools
             _editControl.Show();
         }
 
-        /// <summary>
-        /// Delete the templates selected in the list 
-        /// </summary>
-        private void PerformDeleteTemplates()
-        {
-            var confirmMessage = "Would you like to delete the selected templates from CRM?\nNOTE: THIS ACTION CANNOT BE UNDONE.";
-            if (MessageBox.Show(confirmMessage, "Confrim Delete Template(s)", MessageBoxButtons.YesNo) == DialogResult.Yes)
-            {
-                // get the file up there!
-                ExecuteMethod(PerformBulkActionTemplates, BulkAction.Delete);
-            }
-        }
+        #endregion Document Template related methods
 
-        private void PerformActivateTemplates()
-        {
-            var confirmMessage = "Would you like to activate the selected templates in CRM?";
-            if (MessageBox.Show(confirmMessage, "Confrim Activate Template(s)", MessageBoxButtons.YesNo) == DialogResult.Yes)
-            {
-                // get the file up there!
-                ExecuteMethod(PerformBulkActionTemplates, BulkAction.Activate);
-            }
-        }
+        #region Common UI methods
 
-        private void PerformDeactivateTemplates()
-        {
-            var confirmMessage = "Would you like to deactivate the selected templates in CRM?";
-            if (MessageBox.Show(confirmMessage, "Confrim Deactivate Template(s)", MessageBoxButtons.YesNo) == DialogResult.Yes)
-            {
-                // get the file up there!
-                ExecuteMethod(PerformBulkActionTemplates, BulkAction.Deactivate);
-            }
-        }
-        
-        /// <summary>
-        /// Shared method that will perform bulk actions for Delete, Activate/Deactivate
-        /// </summary>
-        /// <param name="action"></param>
-        private void PerformBulkActionTemplates(BulkAction action)
-        {
-            var message = "";
-            var progressMessage = "";
-            switch (action)
-            {
-                case BulkAction.Activate:
-                    message = "Activating selected Document Templates";
-                    progressMessage = "activating Document Templates in CRM";
-                    break;
-                case BulkAction.Deactivate:
-                    message = "Deactivating selected Document Templates";
-                    progressMessage = "deactivating Document Templates in CRM";
-                    break;
-                case BulkAction.Delete:
-                    message = "Deleting selected Document Templates";
-                    progressMessage = "deleting Document Templates from CRM";
-                    break;
-            }
-
-            var selItemArray = new ListViewItem[listViewDocumentTemplates.SelectedItems.Count];
-            listViewDocumentTemplates.SelectedItems.CopyTo(selItemArray, 0);
-            // build the bach list for delete 
-            WorkAsync(new WorkAsyncInfo
-            {
-                Message = message,
-                AsyncArgument = selItemArray.ToList<ListViewItem>(),
-                Work = (w, e) =>
-                {
-                    try
-                    {
-                        w.ReportProgress(0, "Begin " + progressMessage);
-                        var selItems = e.Argument as List<ListViewItem>;
-                        int templateCount = selItems.Count;
-                        int counter = 0;
-
-                        // grab the list of selected template Ids
-                        foreach (ListViewItem item in selItems)
-                        {
-                            counter++;
-                            var template = item.Tag as DocumentTemplateEdit;
-                            var entityTarget = new Entity(template.EntityLogicalName, template.Id) {
-                                EntityState = EntityState.Changed
-                            };
-
-                            w.ReportProgress(Convert.ToInt32(counter / templateCount) * 100, "Template: " + template.Name);
-
-                            switch (action)
-                            {
-                                case BulkAction.Activate:
-                                case BulkAction.Deactivate:
-                                    if (action == BulkAction.Activate) {
-                                        entityTarget["status"] = false;
-                                    }
-                                    else {
-                                        entityTarget["status"] = true;
-                                    }
-                                    var updateRequest = new UpdateRequest() {
-                                        Target = entityTarget
-                                    };
-                                    Service.Execute(updateRequest);
-                                    break;
-                                case BulkAction.Delete:
-                                    var deleteRequest = new DeleteRequest() {
-                                        Target = entityTarget.ToEntityReference()
-                                    };
-                                    Service.Execute(deleteRequest);
-                                    break;
-                            }
-                        }
-
-                        w.ReportProgress(0, "Done " + progressMessage);
-                        w.ReportProgress(0, "");
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("An error occured with one or more templates:\n" + ex.Message);
-                    }
-                },
-                ProgressChanged = e =>
-                {
-                    SendMessageToStatusBar?.Invoke(this, new StatusBarMessageEventArgs(e.ProgressPercentage, e.UserState.ToString()));
-                },
-                PostWorkCallBack = e => {
-                    // reload the list of templates 
-                    LoadDocumentTemplates();
-                },
-                IsCancelable = true,
-                MessageWidth = 340,
-                MessageHeight = 150
-            });
-        }
-        #endregion
-
-        #region Common UI methods 
         /// <summary>
         /// Toggle the main area enabled or disabled
         /// </summary>
@@ -318,7 +355,8 @@ namespace Futurez.Xrm.Tools
         {
             var count = 0;
 
-            if (listViewDocumentTemplates.SelectedItems != null) {
+            if (listViewDocumentTemplates.SelectedItems != null)
+            {
                 count = listViewDocumentTemplates.SelectedItems.Count;
             }
 
@@ -331,6 +369,8 @@ namespace Futurez.Xrm.Tools
             // toolButtonUpload.Enabled = singleSelect;
             toolStripMenuItemEditTemplate.Enabled = singleSelect;
             toolStripMenuItemUploadSingle.Enabled = singleSelect;
+            refreshAvailableColumnsToolStripMenuItem.Enabled = singleSelect;
+            selectRelationshipsToolStripMenuItem.Enabled = singleSelect;
 
             toolButtonDownload.Enabled = multiSelect;
             toolStripMenuItemDeleteTemplates.Enabled = multiSelect;
@@ -346,13 +386,10 @@ namespace Futurez.Xrm.Tools
                 propertyGridDetails.SelectedObject = template;
             }
         }
-        #endregion
+
+        #endregion Common UI methods
 
         #region ListView Event Handlers
-        private void listViewDocumentTemplates_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            UpdateControlsForSelection();
-        }
 
         private void listViewDocumentTemplates_ColumnClick(object sender, ColumnClickEventArgs e)
         {
@@ -375,7 +412,7 @@ namespace Futurez.Xrm.Tools
             UpdateControlsForSelection();
             PerformEditTemplate();
         }
-        
+
         private void listViewDocumentTemplates_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Control && (e.KeyCode == Keys.A))
@@ -388,25 +425,19 @@ namespace Futurez.Xrm.Tools
                 listViewDocumentTemplates.ResumeLayout();
             }
         }
-        #endregion 
+
+        private void listViewDocumentTemplates_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdateControlsForSelection();
+        }
+
+        #endregion ListView Event Handlers
 
         #region Toolbar Button Event Handlers
+
         private void toolButtonCloseTab_Click(object sender, EventArgs e)
         {
             CloseTool();
-        }
-
-        private void toolButtonLoadTemplates_Click(object sender, EventArgs e)
-        {
-            // make sure they want to reload
-            if (listViewDocumentTemplates.Items.Count > 0)
-            {
-                if (MessageBox.Show("Clear the current list of Document Templates and reload from the server?", "Load Templates", MessageBoxButtons.YesNo) != DialogResult.Yes) {
-                    return;
-                }
-            }
-            // otherwise load
-            ExecuteMethod(LoadDocumentTemplates);
         }
 
         private void toolButtonDownload_Click(object sender, EventArgs e)
@@ -421,19 +452,33 @@ namespace Futurez.Xrm.Tools
             }
         }
 
+        private void toolButtonLoadTemplates_Click(object sender, EventArgs e)
+        {
+            // make sure they want to reload
+            if (listViewDocumentTemplates.Items.Count > 0)
+            {
+                if (MessageBox.Show("Clear the current list of Document Templates and reload from the server?", "Load Templates", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+            // otherwise load
+            ExecuteMethod(LoadDocumentTemplates);
+        }
+
         private void toolButtonUpload_Click(object sender, EventArgs e)
         {
         }
 
-        private void toolStripMenuItemDeleteTemplates_Click(object sender, EventArgs e)
+        private void toolStripMenuItemActivateTemplates_Click(object sender, EventArgs e)
         {
             if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
-                MessageBox.Show("Please select one or more templates to delete.");
+                MessageBox.Show("Please select one or more templates to activate.");
             }
             else
             {
-                PerformDeleteTemplates();
+                PerformActivateTemplates();
             }
         }
 
@@ -448,15 +493,16 @@ namespace Futurez.Xrm.Tools
                 PerformDeactivateTemplates();
             }
         }
-        private void toolStripMenuItemActivateTemplates_Click(object sender, EventArgs e)
+
+        private void toolStripMenuItemDeleteTemplates_Click(object sender, EventArgs e)
         {
             if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
-                MessageBox.Show("Please select one or more templates to activate.");
+                MessageBox.Show("Please select one or more templates to delete.");
             }
             else
             {
-                PerformActivateTemplates();
+                PerformDeleteTemplates();
             }
         }
 
@@ -471,9 +517,11 @@ namespace Futurez.Xrm.Tools
                 PerformEditTemplate();
             }
         }
-        #endregion
+
+        #endregion Toolbar Button Event Handlers
 
         #region File Access methods
+
         /// <summary>
         /// Download the selected templates
         /// </summary>
@@ -482,7 +530,8 @@ namespace Futurez.Xrm.Tools
         {
             var templateIds = new List<Guid>();
             // grab the list of selected template Ids
-            foreach (ListViewItem item in this.listViewDocumentTemplates.SelectedItems) {
+            foreach (ListViewItem item in this.listViewDocumentTemplates.SelectedItems)
+            {
                 var template = item.Tag as DocumentTemplateEdit;
                 templateIds.Add(template.Id);
             }
@@ -514,16 +563,20 @@ namespace Futurez.Xrm.Tools
                             var ext = Path.GetExtension(template.FileName);
 
                             // if we have more than one file, add a folder for the status
-                            if (fileCount > 1) {
+                            if (fileCount > 1)
+                            {
                                 fileName = folder + fileName;
                             }
 
                             renameCount = 1;
-                            while (files.ContainsKey(fileName)) {
-                                if (fileCount > 1) {
+                            while (files.ContainsKey(fileName))
+                            {
+                                if (fileCount > 1)
+                                {
                                     fileName = folder + template.Name + " (" + (renameCount++).ToString() + ")" + ext;
                                 }
-                                else {
+                                else
+                                {
                                     fileName = template.Name + " (" + (renameCount++).ToString() + ")" + ext;
                                 }
                             }
@@ -533,26 +586,29 @@ namespace Futurez.Xrm.Tools
                         }
 
                         // if only one file was selected, save just that... otherwise, package things up in a zip!
-                        if (files.Count > 1) {
+                        if (files.Count > 1)
+                        {
                             var zipper = new ZipBuilder();
                             downloadFileName = string.Format("Document Templates - {0:M-d-yyyy HH-mm}.zip", DateTime.Now);
                             bytesToSave = zipper.zipBytes(files);
                         }
-                        else {
+                        else
+                        {
                             var file = files.First();
                             bytesToSave = file.Value;
                             downloadFileName = file.Key;
                         }
-                        // append the selected folder... 
+                        // append the selected folder...
                         downloadFileName = Path.Combine(saveFolder, downloadFileName);
 
                         renameCount = 1;
                         // delete file if it exists
-                        while (File.Exists(downloadFileName)) {
+                        while (File.Exists(downloadFileName))
+                        {
                             downloadFileName = Path.GetFileNameWithoutExtension(downloadFileName) + " (" + (renameCount++).ToString() + ")" + Path.GetExtension(downloadFileName);
                             downloadFileName = Path.Combine(saveFolder, downloadFileName);
                         }
-                        // write 
+                        // write
                         using (var saveMe = new FileStream(downloadFileName, FileMode.OpenOrCreate, FileAccess.Write))
                         {
                             saveMe.Write(bytesToSave, 0, bytesToSave.Length);
@@ -577,51 +633,9 @@ namespace Futurez.Xrm.Tools
             });
         }
 
-        private void PerformUploadSingle() {
-
-            // assuming only a single selection
-            ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
-            var template = item.Tag as DocumentTemplateEdit;
-            
-            // grab the list of files to be uploaded
-            using (var openDlg = new OpenFileDialog() {
-                InitialDirectory = Path.GetPathRoot(Environment.SystemDirectory),
-                Filter = Constants.GetFileOpenFilter(),
-                FilterIndex = 1,
-                RestoreDirectory = true
-            })
-            {
-                if (openDlg.ShowDialog() == DialogResult.OK)
-                {
-                    try
-                    {
-                        var fileUpload = new FileUpload(openDlg.FileName, Service);
-                        if (template.Type != fileUpload.TemplateType)
-                        {
-                            MessageBox.Show("The extension of the file selected does not match the template selected.", "Incorrect File Type", MessageBoxButtons.OK);
-                            return;
-                        }
-                        else if (fileUpload.IsIgnored) {
-
-                            MessageBox.Show($"Unable to upload the selected file: {fileUpload.Note}", "Unable to upload", MessageBoxButtons.OK);
-                            return;
-                        }
-                        else
-                        {
-                            var confirmMessage = $"NOTE: This will overwrite the Content of the Document Template '{template.Name}'. Please be sure that the Document Type and Associated Entity are correct.\n Would you like to continue?";
-                            if (MessageBox.Show(confirmMessage, "Confrim Upload", MessageBoxButtons.YesNo) == DialogResult.Yes)
-                            {
-                                // get the file up there!
-                                ExecuteMethod(UploadFile, fileUpload);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Error opening file : " + ex.Message);
-                    }
-                }
-            }
+        private void ParentForm_Resize(object sender, EventArgs e)
+        {
+            ResizeSummaryScreen();
         }
 
         /// <summary>
@@ -629,8 +643,9 @@ namespace Futurez.Xrm.Tools
         /// </summary>
         private void PerformUploadMultiple()
         {
-            // allow user to select one or more files 
-            using (var openDlg = new OpenFileDialog() {
+            // allow user to select one or more files
+            using (var openDlg = new OpenFileDialog()
+            {
                 InitialDirectory = Path.GetPathRoot(Environment.SystemDirectory),
                 Filter = Constants.GetFileOpenFilter(),
                 FilterIndex = 1,
@@ -660,13 +675,13 @@ namespace Futurez.Xrm.Tools
                     {
                         var fileUpload = new FileUpload(file, Service);
 
-                        // if the file extension is not .docx nor .xlsx, ignore 
+                        // if the file extension is not .docx nor .xlsx, ignore
                         if (fileUpload.IsIgnored)
                         {
                             ignoreTemplate.Add(fileUpload);
                         }
-                        else {
-
+                        else
+                        {
                             var key = fileUpload.TemplateName.ToLower() + "_" + fileUpload.TemplateType;
 
                             var foundItems = templateNameList.FindAll(s => s == key);
@@ -679,7 +694,7 @@ namespace Futurez.Xrm.Tools
                             }
                             else
                             {
-                                // only one instance 
+                                // only one instance
                                 if (foundItems.Count == 1)
                                 {
                                     var template = templateList.Find(t => t.Name.ToLower() == fileUpload.TemplateName.ToLower());
@@ -687,7 +702,8 @@ namespace Futurez.Xrm.Tools
                                     fileUpload.Note = "Update Template with id: " + template.Id.ToString("b");
                                     updateTemplate.Add(fileUpload);
                                 }
-                                else {
+                                else
+                                {
                                     fileUpload.IsIgnored = true;
                                     fileUpload.Note = "Duplicate template name found";
                                     ignoreTemplate.Add(fileUpload);
@@ -697,7 +713,8 @@ namespace Futurez.Xrm.Tools
                     }
 
                     // present a summary, allow user to confirm/cancel
-                    _uploadSummary = new UploadMultipleSummary(Service, createTemplate, updateTemplate, ignoreTemplate) {
+                    _uploadSummary = new UploadMultipleSummary(Service, createTemplate, updateTemplate, ignoreTemplate)
+                    {
                         Parent = this
                     };
                     ResizeSummaryScreen();
@@ -710,21 +727,63 @@ namespace Futurez.Xrm.Tools
                     _uploadSummary.OnComplete += UploadSummary_OnComplete;
                     _uploadSummary.BringToFront();
                     _uploadSummary.Show();
-
                 }
             }
         }
 
-        private void ParentForm_Resize(object sender, EventArgs e)
+        private void PerformUploadSingle()
         {
-            ResizeSummaryScreen();
+            // assuming only a single selection
+            ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
+            var template = item.Tag as DocumentTemplateEdit;
+
+            // grab the list of files to be uploaded
+            using (var openDlg = new OpenFileDialog()
+            {
+                InitialDirectory = Path.GetPathRoot(Environment.SystemDirectory),
+                Filter = Constants.GetFileOpenFilter(),
+                FilterIndex = 1,
+                RestoreDirectory = true
+            })
+            {
+                if (openDlg.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        var fileUpload = new FileUpload(openDlg.FileName, Service);
+                        if (template.Type != fileUpload.TemplateType)
+                        {
+                            MessageBox.Show("The extension of the file selected does not match the template selected.", "Incorrect File Type", MessageBoxButtons.OK);
+                            return;
+                        }
+                        else if (fileUpload.IsIgnored)
+                        {
+                            MessageBox.Show($"Unable to upload the selected file: {fileUpload.Note}", "Unable to upload", MessageBoxButtons.OK);
+                            return;
+                        }
+                        else
+                        {
+                            var confirmMessage = $"NOTE: This will overwrite the Content of the Document Template '{template.Name}'. Please be sure that the Document Type and Associated Entity are correct.\n Would you like to continue?";
+                            if (MessageBox.Show(confirmMessage, "Confrim Upload", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                            {
+                                // get the file up there!
+                                ExecuteMethod(UploadFile, fileUpload);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error opening file : " + ex.Message);
+                    }
+                }
+            }
         }
 
         /// <summary>
         /// Helper method to resize the upload summary screen
         /// </summary>
-        private void ResizeSummaryScreen() {
-
+        private void ResizeSummaryScreen()
+        {
             var width = ParentForm.Width - 500;
             var height = ParentForm.Height - 300;
 
@@ -736,6 +795,52 @@ namespace Futurez.Xrm.Tools
                 _uploadSummary.Width = width;
             }
         }
+
+        /// <summary>
+        /// Upload a single document template
+        /// </summary>
+        /// <param name="fileName"></param>
+        private void UploadFile(FileUpload fileUpload)
+        {
+            ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
+            var template = item.Tag as DocumentTemplateEdit;
+
+            var templateId = template.Id;
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Uploading your template",
+                Work = (w, e) =>
+                {
+                    var fileToUpload = e.Argument as FileUpload;
+
+                    var request = new UpdateRequest()
+                    {
+                        Target = new Entity()
+                        {
+                            Id = templateId,
+                            LogicalName = "documenttemplate",
+                            EntityState = EntityState.Changed
+                        }
+                    };
+                    request.Target.Attributes["content"] = Convert.ToBase64String(fileToUpload.FileContents);
+
+                    var response = Service.Execute(request);
+                },
+                ProgressChanged = e =>
+                {
+                },
+                PostWorkCallBack = e =>
+                {
+                    LoadDocumentTemplates();
+                },
+                AsyncArgument = fileUpload,
+                IsCancelable = true,
+                MessageWidth = 340,
+                MessageHeight = 150
+            });
+        }
+
         /// <summary>
         /// User elected to continue, upload the Create and Update list of files
         /// </summary>
@@ -784,17 +889,20 @@ namespace Futurez.Xrm.Tools
 
                                 w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Updating template: " + file.TemplateName);
                                 // gather up error messages and continue
-                                try {
+                                try
+                                {
                                     Service.Execute(request);
                                 }
-                                catch (Exception ex) {
+                                catch (Exception ex)
+                                {
                                     errorMessages.AppendFormat("Error updating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
                                 }
                             }
 
                             foreach (var file in createTemplate)
                             {
-                                var request = new CreateRequest() {
+                                var request = new CreateRequest()
+                                {
                                     Target = new Entity()
                                     {
                                         LogicalName = "documenttemplate",
@@ -809,20 +917,24 @@ namespace Futurez.Xrm.Tools
                                 w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Creating template: " + file.TemplateName);
 
                                 // gather up error messages and continue
-                                try {
+                                try
+                                {
                                     Service.Execute(request);
                                 }
-                                catch (Exception ex) {
+                                catch (Exception ex)
+                                {
                                     errorMessages.AppendFormat("Error creating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
                                 }
                             }
 
                             // if we have error messages, show them the error of their ways
-                            if (errorMessages.Length > 0) {
+                            if (errorMessages.Length > 0)
+                            {
                                 MessageBox.Show("The following errors occured attempting to upload the files\n" + errorMessages.ToString(), "Errors During Upload", MessageBoxButtons.OK);
                             }
                         }
-                        catch (Exception ex) {
+                        catch (Exception ex)
+                        {
                             MessageBox.Show("An error occured uploading the files\n" + ex.Message);
                         }
                     },
@@ -842,70 +954,55 @@ namespace Futurez.Xrm.Tools
                 });
             }
         }
-        /// <summary>
-        /// Upload a single document template
-        /// </summary>
-        /// <param name="fileName"></param>
-        private void UploadFile(FileUpload fileUpload)
-        {
-            ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
-            var template = item.Tag as DocumentTemplateEdit;
 
-            var templateId = template.Id;
+        #endregion File Access methods
+
+        private void refreshAvailableColumnsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (listViewDocumentTemplates.SelectedItems.Count != 1)
+            {
+                MessageBox.Show("Please select only one template to refresh the columns.");
+            }
+            else
+            {
+                RefreshColumns();
+            }
+        }
+
+        private void RefreshColumns()
+        {
+            var item = (DocumentTemplateEdit)listViewDocumentTemplates.SelectedItems[0].Tag;
 
             WorkAsync(new WorkAsyncInfo
             {
-                Message = "Uploading your template",
-                Work = (w, e) =>
+                Message = "Refreshing columns...",
+                Work = (bw, evt) =>
                 {
-                    var fileToUpload = e.Argument as FileUpload;
-
-                    var request = new UpdateRequest()
+                    item.RefreshXmlMappingContent(Service, bw);
+                },
+                ProgressChanged = evt =>
+                {
+                    SetWorkingMessage(evt.UserState.ToString());
+                },
+                PostWorkCallBack = evt =>
+                {
+                    if (evt.Error != null)
                     {
-                        Target = new Entity() {
-                            Id = templateId,
-                            LogicalName = "documenttemplate",
-                            EntityState = EntityState.Changed
-                        }
-                    };
-                    request.Target.Attributes["content"] = Convert.ToBase64String(fileToUpload.FileContents);
-
-                    var response = Service.Execute(request);
-                },
-                ProgressChanged = e =>
-                {
-                },
-                PostWorkCallBack = e =>
-                {
-                    LoadDocumentTemplates();
-                },
-                AsyncArgument = fileUpload,
-                IsCancelable = true,
-                MessageWidth = 340,
-                MessageHeight = 150
+                        MessageBox.Show(this, $"An error occured when updating Word template: {evt.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
             });
         }
-        #endregion
 
-        private void EditControl_OnComplete(bool userCanceled, EventArgs e)
+        private void selectRelationshipsToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            _editControl.Dispose();
-            _editControl = null;
-
-            if (!userCanceled)
+            if (listViewDocumentTemplates.SelectedItems.Count != 1)
             {
-                ExecuteMethod(LoadDocumentTemplates);
+                MessageBox.Show("Please select only one template to update the relationships.");
             }
-            ToggleMainControlsEnabled(true);
-        }
-
-        private void toolStripMenuItemUploadSingle_Click(object sender, EventArgs e)
-        {
-            if (listViewDocumentTemplates.SelectedItems.Count != 1) {
-                MessageBox.Show("Please select only one template to update.");
-            }
-            else {
-                PerformUploadSingle();
+            else
+            {
+                UpdateRelationships();
             }
         }
 
@@ -915,28 +1012,21 @@ namespace Futurez.Xrm.Tools
 
             // first load the templates again
             LoadDocumentTemplates(PerformUploadMultiple);
-
         }
 
-        /// <summary>
-        /// This event occurs when the connection has been updated in <see cref="XrmToolBox"/>
-        /// </summary>
-        public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
+        private void toolStripMenuItemUploadSingle_Click(object sender, EventArgs e)
         {
-            base.UpdateConnection(newService, detail, actionName, parameter);
-
-            LogInfo("Connection has changed to: {0}", detail.WebApplicationUrl);
-
-            // load the document templates again now that the connection has changed
-            LoadDocumentTemplates();
+            if (listViewDocumentTemplates.SelectedItems.Count != 1)
+            {
+                MessageBox.Show("Please select only one template to update.");
+            }
+            else
+            {
+                PerformUploadSingle();
+            }
         }
 
         #region instructions helpers
-
-        private void labelInstructions_MouseHover(object sender, EventArgs e)
-        {
-            toolTipInstructions.Show("Double click the instructions to expand.", labelInstructions);
-        }
 
         private void labelInstructions_DoubleClick(object sender, EventArgs e)
         {
@@ -955,6 +1045,75 @@ namespace Futurez.Xrm.Tools
             var rowIndex = tableLayoutPanelMain.GetRow(labelInstructions);
             tableLayoutPanelMain.RowStyles[rowIndex].Height = height;
         }
-        #endregion
+
+        private void labelInstructions_MouseHover(object sender, EventArgs e)
+        {
+            toolTipInstructions.Show("Double click the instructions to expand.", labelInstructions);
+        }
+
+        #endregion instructions helpers
+
+        private void UpdateRelationships()
+        {
+            var item = (DocumentTemplateEdit)listViewDocumentTemplates.SelectedItems[0].Tag;
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Loading table metadata...",
+                Work = (bw, evt) =>
+                {
+                    var emd = ((RetrieveEntityResponse)Service.Execute(new RetrieveEntityRequest
+                    {
+                        LogicalName = item.AssociatedEntityLogicalName,
+                        EntityFilters = EntityFilters.Relationships
+                    })).EntityMetadata;
+
+                    var selectedRelationships = item.GetRelationships(Service);
+
+                    evt.Result = new Tuple<EntityMetadata, List<string>>(emd, selectedRelationships);
+                },
+                ProgressChanged = evt =>
+                {
+                    SetWorkingMessage(evt.UserState.ToString());
+                },
+                PostWorkCallBack = evt =>
+                {
+                    if (evt.Error != null)
+                    {
+                        MessageBox.Show(this, $"An error occured when updating Word template: {evt.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    var result = (Tuple<EntityMetadata, List<string>>)evt.Result;
+
+                    var dialog = new RelationshipSelectionDialog(Service, result.Item1, result.Item2);
+                    dialog.ShowDialog(this);
+                    if (dialog.DialogResult != DialogResult.OK)
+                    {
+                        return;
+                    }
+
+                    WorkAsync(new WorkAsyncInfo
+                    {
+                        Message = "Updating relationships...",
+                        Work = (bw, evt2) =>
+                        {
+                            item.RefreshXmlMappingContent(dialog.SelectedRelationships, Service, bw);
+                        },
+                        ProgressChanged = evt2 =>
+                        {
+                            SetWorkingMessage(evt2.UserState.ToString());
+                        },
+                        PostWorkCallBack = evt2 =>
+                        {
+                            if (evt2.Error != null)
+                            {
+                                MessageBox.Show(this, $"An error occured when updating Word template: {evt.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
+                    });
+                }
+            });
+        }
     }
 }
