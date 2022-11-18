@@ -909,9 +909,16 @@ namespace Futurez.Xrm.Tools
                                         EntityState = EntityState.Created
                                     }
                                 };
+
+                                var desc = "New " + file.TemplateType + " template. Source file: " + file.FileName;
+                                if (desc.Length > 100)
+                                {
+                                    desc = desc.Substring(0, 100);
+                                }
+
                                 request.Target.Attributes["name"] = file.TemplateName;
                                 request.Target.Attributes["documenttype"] = new OptionSetValue(file.TemplateTypeValue);
-                                request.Target.Attributes["description"] = "New " + file.TemplateType + " template. Source file: " + file.FileName;
+                                request.Target.Attributes["description"] = desc;
                                 request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
 
                                 w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Creating template: " + file.TemplateName);
