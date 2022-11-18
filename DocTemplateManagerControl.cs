@@ -342,7 +342,7 @@ namespace Futurez.Xrm.Tools
         /// <param name="enabled"></param>
         private void ToggleMainControlsEnabled(bool enabled)
         {
-            tableLayoutPanelMain.Enabled = enabled;
+            Enabled = enabled;
             toolStripMain.Enabled = enabled;
             panelSplitter.Enabled = enabled;
             labelInstructions.Enabled = enabled;
@@ -1025,33 +1025,6 @@ namespace Futurez.Xrm.Tools
                 PerformUploadSingle();
             }
         }
-
-        #region instructions helpers
-
-        private void labelInstructions_DoubleClick(object sender, EventArgs e)
-        {
-            var height = 100;
-
-            if (labelInstructions.Tag == null)
-            {
-                height = 225;
-                labelInstructions.Tag = "expanded";
-            }
-            else
-            {
-                height = 100;
-                labelInstructions.Tag = null;
-            }
-            var rowIndex = tableLayoutPanelMain.GetRow(labelInstructions);
-            tableLayoutPanelMain.RowStyles[rowIndex].Height = height;
-        }
-
-        private void labelInstructions_MouseHover(object sender, EventArgs e)
-        {
-            toolTipInstructions.Show("Double click the instructions to expand.", labelInstructions);
-        }
-
-        #endregion instructions helpers
 
         private void UpdateRelationships()
         {

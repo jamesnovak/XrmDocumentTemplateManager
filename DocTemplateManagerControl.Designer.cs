@@ -33,8 +33,8 @@ namespace Futurez.Xrm.Tools
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.ListViewGroup listViewGroup9 = new System.Windows.Forms.ListViewGroup("Microsoft Word", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup10 = new System.Windows.Forms.ListViewGroup("Microsoft Excel", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Microsoft Word", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("Microsoft Excel", System.Windows.Forms.HorizontalAlignment.Left);
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(DocTemplateManagerControl));
             this.toolTipInstructions = new System.Windows.Forms.ToolTip(this.components);
             this.colHeadModifiedOn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -51,6 +51,9 @@ namespace Futurez.Xrm.Tools
             this.toolStripMenuItemActivateTemplates = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripDropDownOther = new System.Windows.Forms.ToolStripDropDownButton();
             this.toolStripMenuItemEditTemplate = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.refreshAvailableColumnsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.selectRelationshipsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolButtonUpload = new System.Windows.Forms.ToolStripButton();
             this.toolStripMenuItemUploadMultiple = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemUploadSingle = new System.Windows.Forms.ToolStripMenuItem();
@@ -59,14 +62,14 @@ namespace Futurez.Xrm.Tools
             this.toolButtonLoadTemplates = new System.Windows.Forms.ToolStripButton();
             this.toolButtonCloseTab = new System.Windows.Forms.ToolStripButton();
             this.toolStripMain = new System.Windows.Forms.ToolStrip();
-            this.tableLayoutPanelMain = new System.Windows.Forms.TableLayoutPanel();
             this.labelInstructions = new System.Windows.Forms.Label();
-            this.refreshAvailableColumnsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.selectRelationshipsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.scMain = new System.Windows.Forms.SplitContainer();
             this.panelSplitter.SuspendLayout();
             this.toolStripMain.SuspendLayout();
-            this.tableLayoutPanelMain.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.scMain)).BeginInit();
+            this.scMain.Panel1.SuspendLayout();
+            this.scMain.Panel2.SuspendLayout();
+            this.scMain.SuspendLayout();
             this.SuspendLayout();
             // 
             // toolTipInstructions
@@ -100,10 +103,10 @@ namespace Futurez.Xrm.Tools
             // splitterMain
             // 
             this.splitterMain.Dock = System.Windows.Forms.DockStyle.Right;
-            this.splitterMain.Location = new System.Drawing.Point(1427, 0);
+            this.splitterMain.Location = new System.Drawing.Point(1036, 0);
             this.splitterMain.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.splitterMain.Name = "splitterMain";
-            this.splitterMain.Size = new System.Drawing.Size(9, 855);
+            this.splitterMain.Size = new System.Drawing.Size(21, 754);
             this.splitterMain.TabIndex = 6;
             this.splitterMain.TabStop = false;
             // 
@@ -111,10 +114,10 @@ namespace Futurez.Xrm.Tools
             // 
             this.propertyGridDetails.Dock = System.Windows.Forms.DockStyle.Right;
             this.propertyGridDetails.LineColor = System.Drawing.SystemColors.ControlDark;
-            this.propertyGridDetails.Location = new System.Drawing.Point(1436, 0);
+            this.propertyGridDetails.Location = new System.Drawing.Point(1057, 0);
             this.propertyGridDetails.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.propertyGridDetails.Name = "propertyGridDetails";
-            this.propertyGridDetails.Size = new System.Drawing.Size(366, 855);
+            this.propertyGridDetails.Size = new System.Drawing.Size(824, 754);
             this.propertyGridDetails.TabIndex = 5;
             this.propertyGridDetails.ToolbarVisible = false;
             // 
@@ -128,20 +131,20 @@ namespace Futurez.Xrm.Tools
             this.colHeadEntityName});
             this.listViewDocumentTemplates.Dock = System.Windows.Forms.DockStyle.Fill;
             this.listViewDocumentTemplates.FullRowSelect = true;
-            listViewGroup9.Header = "Microsoft Word";
-            listViewGroup9.Name = "Microsoft Word";
-            listViewGroup9.Tag = "Microsoft Word";
-            listViewGroup10.Header = "Microsoft Excel";
-            listViewGroup10.Name = "Microsoft Excel";
-            listViewGroup10.Tag = "Microsoft Excel";
+            listViewGroup1.Header = "Microsoft Word";
+            listViewGroup1.Name = "Microsoft Word";
+            listViewGroup1.Tag = "Microsoft Word";
+            listViewGroup2.Header = "Microsoft Excel";
+            listViewGroup2.Name = "Microsoft Excel";
+            listViewGroup2.Tag = "Microsoft Excel";
             this.listViewDocumentTemplates.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup9,
-            listViewGroup10});
+            listViewGroup1,
+            listViewGroup2});
             this.listViewDocumentTemplates.HideSelection = false;
             this.listViewDocumentTemplates.Location = new System.Drawing.Point(0, 0);
             this.listViewDocumentTemplates.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.listViewDocumentTemplates.Name = "listViewDocumentTemplates";
-            this.listViewDocumentTemplates.Size = new System.Drawing.Size(1802, 855);
+            this.listViewDocumentTemplates.Size = new System.Drawing.Size(1881, 754);
             this.listViewDocumentTemplates.TabIndex = 4;
             this.listViewDocumentTemplates.Tag = "0";
             this.listViewDocumentTemplates.UseCompatibleStateImageBehavior = false;
@@ -163,10 +166,10 @@ namespace Futurez.Xrm.Tools
             this.panelSplitter.Controls.Add(this.propertyGridDetails);
             this.panelSplitter.Controls.Add(this.listViewDocumentTemplates);
             this.panelSplitter.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panelSplitter.Location = new System.Drawing.Point(4, 67);
+            this.panelSplitter.Location = new System.Drawing.Point(0, 0);
             this.panelSplitter.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.panelSplitter.Name = "panelSplitter";
-            this.panelSplitter.Size = new System.Drawing.Size(1802, 855);
+            this.panelSplitter.Size = new System.Drawing.Size(1881, 754);
             this.panelSplitter.TabIndex = 6;
             // 
             // toolStripMenuItemDeleteTemplates
@@ -183,7 +186,7 @@ namespace Futurez.Xrm.Tools
             this.toolStripMenuItemDeactivateTemplates.Enabled = false;
             this.toolStripMenuItemDeactivateTemplates.Image = ((System.Drawing.Image)(resources.GetObject("toolStripMenuItemDeactivateTemplates.Image")));
             this.toolStripMenuItemDeactivateTemplates.Name = "toolStripMenuItemDeactivateTemplates";
-            this.toolStripMenuItemDeactivateTemplates.Size = new System.Drawing.Size(290, 34);
+            this.toolStripMenuItemDeactivateTemplates.Size = new System.Drawing.Size(317, 34);
             this.toolStripMenuItemDeactivateTemplates.Text = "Deactivate Template(s)";
             this.toolStripMenuItemDeactivateTemplates.Click += new System.EventHandler(this.toolStripMenuItemDeactivateTemplates_Click);
             // 
@@ -192,7 +195,7 @@ namespace Futurez.Xrm.Tools
             this.toolStripMenuItemActivateTemplates.Enabled = false;
             this.toolStripMenuItemActivateTemplates.Image = ((System.Drawing.Image)(resources.GetObject("toolStripMenuItemActivateTemplates.Image")));
             this.toolStripMenuItemActivateTemplates.Name = "toolStripMenuItemActivateTemplates";
-            this.toolStripMenuItemActivateTemplates.Size = new System.Drawing.Size(290, 34);
+            this.toolStripMenuItemActivateTemplates.Size = new System.Drawing.Size(317, 34);
             this.toolStripMenuItemActivateTemplates.Text = "Activate Template(s)";
             this.toolStripMenuItemActivateTemplates.Click += new System.EventHandler(this.toolStripMenuItemActivateTemplates_Click);
             // 
@@ -218,9 +221,30 @@ namespace Futurez.Xrm.Tools
             this.toolStripMenuItemEditTemplate.Enabled = false;
             this.toolStripMenuItemEditTemplate.Image = ((System.Drawing.Image)(resources.GetObject("toolStripMenuItemEditTemplate.Image")));
             this.toolStripMenuItemEditTemplate.Name = "toolStripMenuItemEditTemplate";
-            this.toolStripMenuItemEditTemplate.Size = new System.Drawing.Size(290, 34);
+            this.toolStripMenuItemEditTemplate.Size = new System.Drawing.Size(317, 34);
             this.toolStripMenuItemEditTemplate.Text = "Edit Template";
             this.toolStripMenuItemEditTemplate.Click += new System.EventHandler(this.toolStripMenuItemEditTemplate_Click);
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(314, 6);
+            // 
+            // refreshAvailableColumnsToolStripMenuItem
+            // 
+            this.refreshAvailableColumnsToolStripMenuItem.Enabled = false;
+            this.refreshAvailableColumnsToolStripMenuItem.Name = "refreshAvailableColumnsToolStripMenuItem";
+            this.refreshAvailableColumnsToolStripMenuItem.Size = new System.Drawing.Size(317, 34);
+            this.refreshAvailableColumnsToolStripMenuItem.Text = "Refresh available columns";
+            this.refreshAvailableColumnsToolStripMenuItem.Click += new System.EventHandler(this.refreshAvailableColumnsToolStripMenuItem_Click);
+            // 
+            // selectRelationshipsToolStripMenuItem
+            // 
+            this.selectRelationshipsToolStripMenuItem.Enabled = false;
+            this.selectRelationshipsToolStripMenuItem.Name = "selectRelationshipsToolStripMenuItem";
+            this.selectRelationshipsToolStripMenuItem.Size = new System.Drawing.Size(317, 34);
+            this.selectRelationshipsToolStripMenuItem.Text = "Select relationships";
+            this.selectRelationshipsToolStripMenuItem.Click += new System.EventHandler(this.selectRelationshipsToolStripMenuItem_Click);
             // 
             // toolButtonUpload
             // 
@@ -295,7 +319,6 @@ namespace Futurez.Xrm.Tools
             // 
             // toolStripMain
             // 
-            this.tableLayoutPanelMain.SetColumnSpan(this.toolStripMain, 2);
             this.toolStripMain.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.toolButtonCloseTab,
             this.toolButtonLoadTemplates,
@@ -306,77 +329,57 @@ namespace Futurez.Xrm.Tools
             this.toolStripMain.Location = new System.Drawing.Point(0, 0);
             this.toolStripMain.Name = "toolStripMain";
             this.toolStripMain.Padding = new System.Windows.Forms.Padding(0, 0, 3, 0);
-            this.toolStripMain.Size = new System.Drawing.Size(1810, 34);
+            this.toolStripMain.Size = new System.Drawing.Size(1881, 34);
             this.toolStripMain.TabIndex = 0;
             this.toolStripMain.Text = "Main";
-            // 
-            // tableLayoutPanelMain
-            // 
-            this.tableLayoutPanelMain.ColumnCount = 1;
-            this.tableLayoutPanelMain.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanelMain.Controls.Add(this.toolStripMain, 0, 0);
-            this.tableLayoutPanelMain.Controls.Add(this.labelInstructions, 0, 2);
-            this.tableLayoutPanelMain.Controls.Add(this.panelSplitter, 0, 1);
-            this.tableLayoutPanelMain.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tableLayoutPanelMain.Location = new System.Drawing.Point(0, 0);
-            this.tableLayoutPanelMain.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            this.tableLayoutPanelMain.Name = "tableLayoutPanelMain";
-            this.tableLayoutPanelMain.RowCount = 3;
-            this.tableLayoutPanelMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 6.741573F));
-            this.tableLayoutPanelMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 93.25843F));
-            this.tableLayoutPanelMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 125F));
-            this.tableLayoutPanelMain.Size = new System.Drawing.Size(1810, 1053);
-            this.tableLayoutPanelMain.TabIndex = 5;
             // 
             // labelInstructions
             // 
             this.labelInstructions.BackColor = System.Drawing.SystemColors.Info;
-            this.tableLayoutPanelMain.SetColumnSpan(this.labelInstructions, 2);
             this.labelInstructions.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.labelInstructions.Location = new System.Drawing.Point(4, 927);
+            this.labelInstructions.Location = new System.Drawing.Point(0, 0);
             this.labelInstructions.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelInstructions.Name = "labelInstructions";
-            this.labelInstructions.Size = new System.Drawing.Size(1802, 126);
+            this.labelInstructions.Size = new System.Drawing.Size(1881, 261);
             this.labelInstructions.TabIndex = 5;
             this.labelInstructions.Text = resources.GetString("labelInstructions.Text");
-            this.labelInstructions.DoubleClick += new System.EventHandler(this.labelInstructions_DoubleClick);
-            this.labelInstructions.MouseHover += new System.EventHandler(this.labelInstructions_MouseHover);
             // 
-            // refreshAvailableColumnsToolStripMenuItem
+            // scMain
             // 
-            this.refreshAvailableColumnsToolStripMenuItem.Enabled = false;
-            this.refreshAvailableColumnsToolStripMenuItem.Name = "refreshAvailableColumnsToolStripMenuItem";
-            this.refreshAvailableColumnsToolStripMenuItem.Size = new System.Drawing.Size(317, 34);
-            this.refreshAvailableColumnsToolStripMenuItem.Text = "Refresh available columns";
-            this.refreshAvailableColumnsToolStripMenuItem.Click += new System.EventHandler(this.refreshAvailableColumnsToolStripMenuItem_Click);
+            this.scMain.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.scMain.Location = new System.Drawing.Point(0, 34);
+            this.scMain.Name = "scMain";
+            this.scMain.Orientation = System.Windows.Forms.Orientation.Horizontal;
             // 
-            // selectRelationshipsToolStripMenuItem
+            // scMain.Panel1
             // 
-            this.selectRelationshipsToolStripMenuItem.Enabled = false;
-            this.selectRelationshipsToolStripMenuItem.Name = "selectRelationshipsToolStripMenuItem";
-            this.selectRelationshipsToolStripMenuItem.Size = new System.Drawing.Size(317, 34);
-            this.selectRelationshipsToolStripMenuItem.Text = "Select relationships";
-            this.selectRelationshipsToolStripMenuItem.Click += new System.EventHandler(this.selectRelationshipsToolStripMenuItem_Click);
+            this.scMain.Panel1.Controls.Add(this.panelSplitter);
             // 
-            // toolStripSeparator1
+            // scMain.Panel2
             // 
-            this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(314, 6);
+            this.scMain.Panel2.Controls.Add(this.labelInstructions);
+            this.scMain.Size = new System.Drawing.Size(1881, 1019);
+            this.scMain.SplitterDistance = 754;
+            this.scMain.TabIndex = 7;
             // 
             // DocTemplateManagerControl
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.Controls.Add(this.tableLayoutPanelMain);
+            this.Controls.Add(this.scMain);
+            this.Controls.Add(this.toolStripMain);
             this.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.Name = "DocTemplateManagerControl";
-            this.Size = new System.Drawing.Size(1810, 1053);
+            this.Size = new System.Drawing.Size(1881, 1053);
             this.panelSplitter.ResumeLayout(false);
             this.toolStripMain.ResumeLayout(false);
             this.toolStripMain.PerformLayout();
-            this.tableLayoutPanelMain.ResumeLayout(false);
-            this.tableLayoutPanelMain.PerformLayout();
+            this.scMain.Panel1.ResumeLayout(false);
+            this.scMain.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.scMain)).EndInit();
+            this.scMain.ResumeLayout(false);
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -405,10 +408,10 @@ namespace Futurez.Xrm.Tools
         private ToolStripButton toolButtonLoadTemplates;
         private ToolStripButton toolButtonCloseTab;
         private ToolStrip toolStripMain;
-        private TableLayoutPanel tableLayoutPanelMain;
-        private Label labelInstructions;
         private ToolStripMenuItem refreshAvailableColumnsToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator1;
         private ToolStripMenuItem selectRelationshipsToolStripMenuItem;
+        private Label labelInstructions;
+        private SplitContainer scMain;
     }
 }
