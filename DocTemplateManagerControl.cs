@@ -369,8 +369,9 @@ namespace Futurez.Xrm.Tools
             // toolButtonUpload.Enabled = singleSelect;
             toolStripMenuItemEditTemplate.Enabled = singleSelect;
             toolStripMenuItemUploadSingle.Enabled = singleSelect;
-            refreshAvailableColumnsToolStripMenuItem.Enabled = singleSelect;
-            selectRelationshipsToolStripMenuItem.Enabled = singleSelect;
+
+            refreshAvailableColumnsToolStripMenuItem.Enabled = singleSelect && ((DocumentTemplateEdit)listViewDocumentTemplates.SelectedItems[0].Tag).TypeValue == 2;
+            selectRelationshipsToolStripMenuItem.Enabled = singleSelect && ((DocumentTemplateEdit)listViewDocumentTemplates.SelectedItems[0].Tag).TypeValue == 2;
 
             toolButtonDownload.Enabled = multiSelect;
             toolStripMenuItemDeleteTemplates.Enabled = multiSelect;
