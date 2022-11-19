@@ -234,6 +234,13 @@
     <Compile Include="Helper\entity.partial.cs" />
     <Compile Include="Helper\FileUpload.cs" />
     <Compile Include="Helper\ListViewItemComparer.cs" />
+    <Compile Include="Helper\WordHelper.cs" />
+    <Compile Include="LocalTemplateUpdaterDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="LocalTemplateUpdaterDialog.Designer.cs">
+      <DependentUpon>LocalTemplateUpdaterDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
@@ -285,6 +292,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="EditTemplateControl.resx">
       <DependentUpon>EditTemplateControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="LocalTemplateUpdaterDialog.resx">
+      <DependentUpon>LocalTemplateUpdaterDialog.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

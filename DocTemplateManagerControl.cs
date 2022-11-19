@@ -1041,6 +1041,17 @@ namespace Futurez.Xrm.Tools
             }
         }
 
+        private void tsbUpdateLocalWordTemplate_Click(object sender, EventArgs e)
+        {
+            ExecuteMethod(UpdateLocalWordTemplate);
+        }
+
+        private void UpdateLocalWordTemplate()
+        {
+            var dialog = new LocalTemplateUpdaterDialog(Service);
+            dialog.ShowDialog(this);
+        }
+
         private void UpdateRelationships()
         {
             var item = (DocumentTemplateEdit)listViewDocumentTemplates.SelectedItems[0].Tag;

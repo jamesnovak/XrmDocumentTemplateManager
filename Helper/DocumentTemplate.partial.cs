@@ -1,15 +1,11 @@
-﻿using DocumentFormat.OpenXml.Packaging;
-using Futurez.Xrm.Tools;
+﻿using Futurez.Xrm.Tools;
+using Futurez.Xrm.Tools.Helper;
 using Microsoft.Xrm.Sdk;
-using Microsoft.Xrm.Sdk.Messages;
-using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
-using System.Xml;
 
 namespace Futurez.Entities
 {
@@ -199,28 +195,7 @@ namespace Futurez.Entities
 
             using (var stream = new MemoryStream(Content))
             {
-                using (WordprocessingDocument doc = WordprocessingDocument.Open(stream, true))
-                {
-                    foreach (var xmlPart in doc.MainDocumentPart.CustomXmlParts)
-                    {
-                        using (XmlTextReader xReader = new XmlTextReader(xmlPart.GetStream(FileMode.Open, FileAccess.Read)))
-                        {
-                            xReader.MoveToContent();
-                            if (!xReader.NamespaceURI.StartsWith("urn:microsoft-crm/document-template")) continue;
-
-                            XmlDocument xd = new XmlDocument();
-                            xd.Load(xReader);
-
-                            foreach (XmlElement node in xd.DocumentElement.FirstChild.ChildNodes)
-                            {
-                                if (node.ChildNodes.Cast<XmlNode>().OfType<XmlElement>().Any())
-                                {
-                                    list.Add(node.Name);
-                                }
-                            }
-                        }
-                    }
-                }
+                list = WordHelper.GetRelationships(stream);
             }
 
             return list;
@@ -235,70 +210,7 @@ namespace Futurez.Entities
             }
             using (var stream = new MemoryStream(Content))
             {
-                using (WordprocessingDocument doc = WordprocessingDocument.Open(stream, true))
-                {
-                    foreach (var xmlPart in doc.MainDocumentPart.CustomXmlParts)
-                    {
-                        using (XmlTextReader xReader = new XmlTextReader(xmlPart.GetStream(FileMode.Open, FileAccess.Read)))
-                        {
-                            xReader.MoveToContent();
-                            if (!xReader.NamespaceURI.StartsWith("urn:microsoft-crm/document-template")) continue;
-
-                            XmlDocument xd = new XmlDocument();
-                            xd.Load(xReader);
-
-                            XmlDocument newContent = new XmlDocument();
-                            var rootNode = newContent.ImportNode(xd.DocumentElement, false);
-                            newContent.AppendChild(rootNode);
-
-                            var initialEntity = xd.DocumentElement.FirstChild.Name;
-
-                            worker.ReportProgress(0, $"Loading table {initialEntity}...");
-                            XmlNode tableElt = AddTable(rootNode, initialEntity, service);
-
-                            foreach (XmlElement node in xd.DocumentElement.FirstChild.ChildNodes)
-                            {
-                                if (node.ChildNodes.Cast<XmlNode>().OfType<XmlElement>().Any())
-                                {
-                                    worker.ReportProgress(0, $"Loading relationship {node.Name}...");
-
-                                    var response = (RetrieveRelationshipResponse)service.Execute(new RetrieveRelationshipRequest
-                                    {
-                                        Name = node.Name
-                                    });
-
-                                    var relElt = newContent.CreateElement(node.Name, newContent.DocumentElement.NamespaceURI);
-                                    tableElt.AppendChild(relElt);
-
-                                    if (response.RelationshipMetadata is OneToManyRelationshipMetadata otm)
-                                    {
-                                        var entity = otm.ReferencedEntity == initialEntity ? otm.ReferencingEntity : otm.ReferencedEntity;
-
-                                        worker.ReportProgress(0, $"Loading table {entity}...");
-                                        AddAttributes(relElt, entity, service);
-                                    }
-
-                                    if (response.RelationshipMetadata is ManyToManyRelationshipMetadata mtm)
-                                    {
-                                        var entity = mtm.Entity1LogicalName == initialEntity ? mtm.Entity2LogicalName : mtm.Entity1LogicalName;
-
-                                        worker.ReportProgress(0, $"Loading table {entity}...");
-                                        AddAttributes(relElt, entity, service);
-                                    }
-                                }
-                            }
-
-                            using (var xmlMS = new MemoryStream())
-                            {
-                                newContent.Save(xmlMS);
-                                xmlMS.Position = 0;
-                                xmlPart.FeedData(xmlMS);
-                            }
-                        }
-                    }
-
-                    doc.Save();
-                }
+                WordHelper.RefreshColumns(stream, service, worker);
 
                 Content = stream.ToArray();
 
@@ -325,68 +237,7 @@ namespace Futurez.Entities
                 var newMS = new MemoryStream();
                 stream.CopyTo(newMS);
 
-                using (WordprocessingDocument doc = WordprocessingDocument.Open(newMS, true))
-                {
-                    foreach (var xmlPart in doc.MainDocumentPart.CustomXmlParts)
-                    {
-                        using (XmlTextReader xReader = new XmlTextReader(xmlPart.GetStream(FileMode.Open, FileAccess.Read)))
-                        {
-                            xReader.MoveToContent();
-                            if (!xReader.NamespaceURI.StartsWith("urn:microsoft-crm/document-template")) continue;
-
-                            XmlDocument xd = new XmlDocument();
-                            xd.Load(xReader);
-
-                            XmlDocument newContent = new XmlDocument();
-                            var rootNode = newContent.ImportNode(xd.DocumentElement, false);
-                            newContent.AppendChild(rootNode);
-
-                            var initialEntity = xd.DocumentElement.FirstChild.Name;
-
-                            worker.ReportProgress(0, $"Loading table {initialEntity}...");
-
-                            XmlNode tableElt = AddTable(newContent.DocumentElement, initialEntity, service);
-
-                            foreach (string relationship in relationships)
-                            {
-                                worker.ReportProgress(0, $"Loading relationship {relationship}...");
-
-                                var response = (RetrieveRelationshipResponse)service.Execute(new RetrieveRelationshipRequest
-                                {
-                                    Name = relationship
-                                });
-
-                                var relElt = newContent.CreateElement(relationship, newContent.DocumentElement.NamespaceURI);
-                                tableElt.AppendChild(relElt);
-
-                                if (response.RelationshipMetadata is OneToManyRelationshipMetadata otm)
-                                {
-                                    var entity = otm.ReferencedEntity == initialEntity ? otm.ReferencingEntity : otm.ReferencedEntity;
-
-                                    worker.ReportProgress(0, $"Loading table {entity}...");
-                                    AddAttributes(relElt, entity, service);
-                                }
-
-                                if (response.RelationshipMetadata is ManyToManyRelationshipMetadata mtm)
-                                {
-                                    var entity = mtm.Entity1LogicalName == initialEntity ? mtm.Entity2LogicalName : mtm.Entity1LogicalName;
-
-                                    worker.ReportProgress(0, $"Loading table {entity}...");
-                                    AddAttributes(relElt, entity, service);
-                                }
-                            }
-
-                            using (var xmlMS = new MemoryStream())
-                            {
-                                newContent.Save(xmlMS);
-                                xmlMS.Position = 0;
-                                xmlPart.FeedData(xmlMS);
-                            }
-                        }
-                    }
-
-                    doc.Save();
-                }
+                WordHelper.RefreshRelationships(newMS, relationships, service, worker);
 
                 Content = newMS.ToArray();
 
@@ -399,43 +250,6 @@ namespace Futurez.Entities
                     }
                 });
             }
-        }
-
-        private void AddAttributes(XmlNode parentNode, AttributeMetadata[] amds)
-        {
-            foreach (var amd in amds.OrderBy(a => a.LogicalName))
-            {
-                var elt = parentNode.OwnerDocument.CreateElement(amd.LogicalName, parentNode.OwnerDocument.DocumentElement.NamespaceURI);
-                elt.InnerText = amd.LogicalName;
-                parentNode.AppendChild(elt);
-            }
-        }
-
-        private void AddAttributes(XmlNode parentNode, string entityName, IOrganizationService service)
-        {
-            var edmResponse = (RetrieveEntityResponse)service.Execute(new RetrieveEntityRequest
-            {
-                EntityFilters = EntityFilters.Attributes,
-                LogicalName = entityName
-            });
-
-            AddAttributes(parentNode, edmResponse.EntityMetadata.Attributes);
-        }
-
-        private XmlNode AddTable(XmlNode parentNode, string logicalName, IOrganizationService service)
-        {
-            var edmResponse = (RetrieveEntityResponse)service.Execute(new RetrieveEntityRequest
-            {
-                EntityFilters = EntityFilters.Attributes,
-                LogicalName = logicalName
-            });
-
-            var tableElt = parentNode.OwnerDocument.CreateElement(edmResponse.EntityMetadata.LogicalName, parentNode.OwnerDocument.DocumentElement.NamespaceURI);
-            parentNode.AppendChild(tableElt);
-
-            AddAttributes(tableElt, edmResponse.EntityMetadata.Attributes);
-
-            return tableElt;
         }
 
         #endregion Helper Methods

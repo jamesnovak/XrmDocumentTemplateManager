@@ -33,8 +33,8 @@ namespace Futurez.Xrm.Tools
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Microsoft Word", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("Microsoft Excel", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Microsoft Word", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Microsoft Excel", System.Windows.Forms.HorizontalAlignment.Left);
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(DocTemplateManagerControl));
             this.toolTipInstructions = new System.Windows.Forms.ToolTip(this.components);
             this.colHeadModifiedOn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -64,6 +64,8 @@ namespace Futurez.Xrm.Tools
             this.toolStripMain = new System.Windows.Forms.ToolStrip();
             this.labelInstructions = new System.Windows.Forms.Label();
             this.scMain = new System.Windows.Forms.SplitContainer();
+            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
+            this.tsbUpdateLocalWordTemplate = new System.Windows.Forms.ToolStripButton();
             this.panelSplitter.SuspendLayout();
             this.toolStripMain.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.scMain)).BeginInit();
@@ -131,15 +133,15 @@ namespace Futurez.Xrm.Tools
             this.colHeadEntityName});
             this.listViewDocumentTemplates.Dock = System.Windows.Forms.DockStyle.Fill;
             this.listViewDocumentTemplates.FullRowSelect = true;
-            listViewGroup1.Header = "Microsoft Word";
-            listViewGroup1.Name = "Microsoft Word";
-            listViewGroup1.Tag = "Microsoft Word";
-            listViewGroup2.Header = "Microsoft Excel";
-            listViewGroup2.Name = "Microsoft Excel";
-            listViewGroup2.Tag = "Microsoft Excel";
+            listViewGroup3.Header = "Microsoft Word";
+            listViewGroup3.Name = "Microsoft Word";
+            listViewGroup3.Tag = "Microsoft Word";
+            listViewGroup4.Header = "Microsoft Excel";
+            listViewGroup4.Name = "Microsoft Excel";
+            listViewGroup4.Tag = "Microsoft Excel";
             this.listViewDocumentTemplates.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup1,
-            listViewGroup2});
+            listViewGroup3,
+            listViewGroup4});
             this.listViewDocumentTemplates.HideSelection = false;
             this.listViewDocumentTemplates.Location = new System.Drawing.Point(0, 0);
             this.listViewDocumentTemplates.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
@@ -325,7 +327,9 @@ namespace Futurez.Xrm.Tools
             this.toolButtonDownload,
             this.toolStripDropDownUpload,
             this.toolStripDropDownOther,
-            this.toolButtonUpload});
+            this.toolButtonUpload,
+            this.toolStripSeparator2,
+            this.tsbUpdateLocalWordTemplate});
             this.toolStripMain.Location = new System.Drawing.Point(0, 0);
             this.toolStripMain.Name = "toolStripMain";
             this.toolStripMain.Padding = new System.Windows.Forms.Padding(0, 0, 3, 0);
@@ -361,6 +365,21 @@ namespace Futurez.Xrm.Tools
             this.scMain.Size = new System.Drawing.Size(1881, 1019);
             this.scMain.SplitterDistance = 754;
             this.scMain.TabIndex = 7;
+            // 
+            // toolStripSeparator2
+            // 
+            this.toolStripSeparator2.Name = "toolStripSeparator2";
+            this.toolStripSeparator2.Size = new System.Drawing.Size(6, 34);
+            // 
+            // tsbUpdateLocalWordTemplate
+            // 
+            this.tsbUpdateLocalWordTemplate.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.tsbUpdateLocalWordTemplate.Image = ((System.Drawing.Image)(resources.GetObject("tsbUpdateLocalWordTemplate.Image")));
+            this.tsbUpdateLocalWordTemplate.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.tsbUpdateLocalWordTemplate.Name = "tsbUpdateLocalWordTemplate";
+            this.tsbUpdateLocalWordTemplate.Size = new System.Drawing.Size(240, 29);
+            this.tsbUpdateLocalWordTemplate.Text = "Update local Word Template";
+            this.tsbUpdateLocalWordTemplate.Click += new System.EventHandler(this.tsbUpdateLocalWordTemplate_Click);
             // 
             // DocTemplateManagerControl
             // 
@@ -413,5 +432,7 @@ namespace Futurez.Xrm.Tools
         private ToolStripMenuItem selectRelationshipsToolStripMenuItem;
         private Label labelInstructions;
         private SplitContainer scMain;
+        private ToolStripSeparator toolStripSeparator2;
+        private ToolStripButton tsbUpdateLocalWordTemplate;
     }
 }
