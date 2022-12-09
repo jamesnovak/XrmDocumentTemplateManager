@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Futurez.Xrm.Tools</RootNamespace>
     <AssemblyName>Futurez.Xrm.Tools.DocTemplateManager</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>SAK</SccProjectName>
     <SccLocalPath>SAK</SccLocalPath>
@@ -265,8 +265,6 @@
     <None Include="app.config">
       <SubType>Designer</SubType>
     </None>
-    <None Include="NuGet\Build - DocTemplteManager.cmd" />
-    <None Include="NuGet\Package\Futurez.Xrm.Tools.DocTemplateManager.nuspec" />
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>

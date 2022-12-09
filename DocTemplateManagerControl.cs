@@ -983,10 +983,6 @@ namespace Futurez.Xrm.Tools
 
         #endregion File Access methods
 
-        /// <summary>
-        /// Upload a single document template
-        /// </summary>
-        /// <param name="fileName"></param>
         private void refreshAvailableColumnsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (listViewDocumentTemplates.SelectedItems.Count != 1)
