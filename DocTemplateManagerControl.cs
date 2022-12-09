@@ -728,9 +728,6 @@ namespace Futurez.Xrm.Tools
                     ResizeSummaryScreen();
                     ParentForm.Resize += ParentForm_Resize;
 
-                    // disable the main UI so they don't monkey with stuff
-                    ToggleMainControlsEnabled(false);
-
                     // handle the on complete event so we can reload and clean up control
                     _uploadSummary.OnComplete += UploadSummary_OnComplete;
                     _uploadSummary.BringToFront();
@@ -863,8 +860,16 @@ namespace Futurez.Xrm.Tools
 
             ParentForm.Resize -= ParentForm_Resize;
 
+            var templateCount = updateTemplate.Count + createTemplate.Count;
+
+            if (templateCount == 0)
+            {
+                MessageBox.Show(this, "No valid document template to upload", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             // disable the main UI so they don't monkey with stuff
-            ToggleMainControlsEnabled(true);
+            ToggleMainControlsEnabled(false);
 
             if (!userCanceled)
             {
@@ -874,83 +879,76 @@ namespace Futurez.Xrm.Tools
                     Work = (w, e) =>
                     {
                         // read the file from disk
-                        try
+
+                        var errorMessages = new StringBuilder();
+                        var counter = 1;
+
+                        // make the content updates
+                        // don't use bulk update to trap errors and not overload the request
+                        foreach (var file in updateTemplate)
                         {
-                            var errorMessages = new StringBuilder();
-                            var counter = 1;
-                            var templateCount = updateTemplate.Count + createTemplate.Count;
-
-                            // make the content updates
-                            // don't use bulk update to trap errors and not overload the request
-                            foreach (var file in updateTemplate)
+                            var request = new UpdateRequest()
                             {
-                                var request = new UpdateRequest()
+                                Target = new Entity()
                                 {
-                                    Target = new Entity()
-                                    {
-                                        Id = file.TemplateId,
-                                        LogicalName = "documenttemplate",
-                                        EntityState = EntityState.Changed
-                                    }
-                                };
-                                request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
+                                    Id = file.TemplateId,
+                                    LogicalName = "documenttemplate",
+                                    EntityState = EntityState.Changed
+                                }
+                            };
+                            request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
 
-                                w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Updating template: " + file.TemplateName);
-                                // gather up error messages and continue
-                                try
-                                {
-                                    Service.Execute(request);
-                                }
-                                catch (Exception ex)
-                                {
-                                    errorMessages.AppendFormat("Error updating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
-                                }
+                            w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Updating template: " + file.TemplateName);
+                            // gather up error messages and continue
+                            try
+                            {
+                                Service.Execute(request);
                             }
-
-                            foreach (var file in createTemplate)
+                            catch (Exception ex)
                             {
-                                var request = new CreateRequest()
-                                {
-                                    Target = new Entity()
-                                    {
-                                        LogicalName = "documenttemplate",
-                                        EntityState = EntityState.Created
-                                    }
-                                };
-
-                                var desc = "New " + file.TemplateType + " template. Source file: " + file.FileName;
-                                if (desc.Length > 100)
-                                {
-                                    desc = desc.Substring(0, 100);
-                                }
-
-                                request.Target.Attributes["name"] = file.TemplateName;
-                                request.Target.Attributes["documenttype"] = new OptionSetValue(file.TemplateTypeValue);
-                                request.Target.Attributes["description"] = desc;
-                                request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
-
-                                w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Creating template: " + file.TemplateName);
-
-                                // gather up error messages and continue
-                                try
-                                {
-                                    Service.Execute(request);
-                                }
-                                catch (Exception ex)
-                                {
-                                    errorMessages.AppendFormat("Error creating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
-                                }
-                            }
-
-                            // if we have error messages, show them the error of their ways
-                            if (errorMessages.Length > 0)
-                            {
-                                MessageBox.Show("The following errors occured attempting to upload the files\n" + errorMessages.ToString(), "Errors During Upload", MessageBoxButtons.OK);
+                                errorMessages.AppendFormat("Error updating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
                             }
                         }
-                        catch (Exception ex)
+
+                        foreach (var file in createTemplate)
                         {
-                            MessageBox.Show("An error occured uploading the files\n" + ex.Message);
+                            var request = new CreateRequest()
+                            {
+                                Target = new Entity()
+                                {
+                                    LogicalName = "documenttemplate",
+                                    EntityState = EntityState.Created
+                                }
+                            };
+
+                            var desc = "New " + file.TemplateType + " template. Source file: " + file.FileName;
+                            if (desc.Length > 100)
+                            {
+                                desc = desc.Substring(0, 100);
+                            }
+
+                            request.Target.Attributes["name"] = file.TemplateName;
+                            request.Target.Attributes["documenttype"] = new OptionSetValue(file.TemplateTypeValue);
+                            request.Target.Attributes["description"] = desc;
+                            request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
+
+                            w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Creating template: " + file.TemplateName);
+
+                            // gather up error messages and continue
+                            try
+                            {
+                                Service.Execute(request);
+                            }
+                            catch (Exception ex)
+                            {
+                                errorMessages.AppendFormat("Error creating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
+                            }
+                        }
+
+                        // if we have error messages, show them the error of their ways
+                        if (errorMessages.Length > 0)
+                        {
+                            throw new Exception(errorMessages.ToString());
                         }
                     },
                     ProgressChanged = e =>
@@ -960,6 +958,13 @@ namespace Futurez.Xrm.Tools
                     },
                     PostWorkCallBack = e =>
                     {
+                        ToggleMainControlsEnabled(true);
+
+                        if (e.Error != null)
+                        {
+                            MessageBox.Show(this, $"The following errors occured attempting to upload the files:\n\n:{e.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+
                         LoadDocumentTemplates();
                     },
                     AsyncArgument = null,
@@ -1023,7 +1028,7 @@ namespace Futurez.Xrm.Tools
 
         private void toolStripMenuItemUploadMultiple_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("We will refresh the list of existing templates from the server to ensure we have the most up to date list.  Once complete, you will be prompted to select one or more files to upload.");
+            MessageBox.Show(this, "We will refresh the list of existing templates from the server to ensure we have the most up to date list.  Once complete, you will be prompted to select one or more files to upload.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // first load the templates again
             LoadDocumentTemplates(PerformUploadMultiple);
