@@ -974,10 +974,19 @@ namespace Futurez.Xrm.Tools
                 });
             }
         }
-
         #endregion File Access methods
 
-        private void refreshAvailableColumnsToolStripMenuItem_Click(object sender, EventArgs e)
+        /// <summary>
+        /// Shorten description string if over 100 char
+        /// </summary>
+        /// <param name="description"></param>
+        public static string LimitDescription(string description) => description.Length > 100 ? description : description.Substring(0, 100);
+
+        /// <summary>
+        /// Upload a single document template
+        /// </summary>
+        /// <param name="fileName"></param>
+        private void UploadFile(FileUpload fileUpload)
         {
             if (listViewDocumentTemplates.SelectedItems.Count != 1)
             {
