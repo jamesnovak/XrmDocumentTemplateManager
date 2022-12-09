@@ -203,26 +203,7 @@ namespace Futurez.Entities
 
         public void RefreshXmlMappingContent(IOrganizationService service, BackgroundWorker worker)
         {
-            if (Content == null)
-            {
-                worker.ReportProgress(0, "Retrieve content from server...");
-                Content = Convert.FromBase64String(service.Retrieve("documenttemplate", Id, new ColumnSet("content")).GetAttributeValue<string>("content"));
-            }
-            using (var stream = new MemoryStream(Content))
-            {
-                WordHelper.RefreshColumns(stream, service, worker);
-
-                Content = stream.ToArray();
-
-                service.Update(new Entity("documenttemplate")
-                {
-                    Id = Id,
-                    Attributes =
-                    {
-                        {"content", Convert.ToBase64String(Content) }
-                    }
-                });
-            }
+            RefreshXmlMappingContent(null, service, worker);
         }
 
         public void RefreshXmlMappingContent(List<string> relationships, IOrganizationService service, BackgroundWorker worker)
@@ -234,21 +215,30 @@ namespace Futurez.Entities
             }
             using (var stream = new MemoryStream(Content))
             {
-                var newMS = new MemoryStream();
-                stream.CopyTo(newMS);
-
-                WordHelper.RefreshRelationships(newMS, relationships, service, worker);
-
-                Content = newMS.ToArray();
-
-                service.Update(new Entity("documenttemplate")
+                using (var newMS = new MemoryStream())
                 {
-                    Id = Id,
-                    Attributes =
+                    stream.CopyTo(newMS);
+
+                    if (relationships != null)
                     {
-                        {"content", Convert.ToBase64String(Content) }
+                        WordHelper.RefreshRelationships(newMS, relationships, service, worker);
                     }
-                });
+                    else
+                    {
+                        WordHelper.RefreshColumns(newMS, service, worker);
+                    }
+
+                    Content = newMS.ToArray();
+
+                    service.Update(new Entity("documenttemplate")
+                    {
+                        Id = Id,
+                        Attributes =
+                        {
+                            {"content", Convert.ToBase64String(Content) }
+                        }
+                    });
+                }
             }
         }
 
