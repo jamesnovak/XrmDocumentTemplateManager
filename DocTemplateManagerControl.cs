@@ -35,6 +35,12 @@ namespace Futurez.Xrm.Tools
         public event EventHandler<StatusBarMessageEventArgs> SendMessageToStatusBar;
 
         /// <summary>
+        /// Shorten description string if over 100 char
+        /// </summary>
+        /// <param name="description"></param>
+        public static string LimitDescription(string description) => description.Length > 100 ? description : description.Substring(0, 100);
+
+        /// <summary>
         /// This event occurs when the connection has been updated in <see cref="XrmToolBox"/>
         /// </summary>
         public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail, string actionName, object parameter)
@@ -974,19 +980,14 @@ namespace Futurez.Xrm.Tools
                 });
             }
         }
-        #endregion File Access methods
 
-        /// <summary>
-        /// Shorten description string if over 100 char
-        /// </summary>
-        /// <param name="description"></param>
-        public static string LimitDescription(string description) => description.Length > 100 ? description : description.Substring(0, 100);
+        #endregion File Access methods
 
         /// <summary>
         /// Upload a single document template
         /// </summary>
         /// <param name="fileName"></param>
-        private void UploadFile(FileUpload fileUpload)
+        private void refreshAvailableColumnsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (listViewDocumentTemplates.SelectedItems.Count != 1)
             {
