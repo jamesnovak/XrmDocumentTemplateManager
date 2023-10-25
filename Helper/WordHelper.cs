@@ -103,7 +103,7 @@ namespace Futurez.Xrm.Tools.Helper
         {
             foreach (var amd in amds.OrderBy(a => a.LogicalName))
             {
-                var elt = parentNode.OwnerDocument.CreateElement(amd.LogicalName, parentNode.OwnerDocument.DocumentElement.NamespaceURI);
+                var elt = parentNode.OwnerDocument.CreateElement(amd.LogicalName, parentNode.NamespaceURI);
                 elt.InnerText = amd.LogicalName;
                 parentNode.AppendChild(elt);
             }
@@ -124,16 +124,35 @@ namespace Futurez.Xrm.Tools.Helper
         {
             var edmResponse = (RetrieveEntityResponse)service.Execute(new RetrieveEntityRequest
             {
-                EntityFilters = EntityFilters.Attributes,
+                EntityFilters = EntityFilters.Entity | EntityFilters.Attributes,
                 LogicalName = logicalName
             });
 
-            var tableElt = parentNode.OwnerDocument.CreateElement(edmResponse.EntityMetadata.LogicalName, parentNode.OwnerDocument.DocumentElement.NamespaceURI);
+            var tableElt = parentNode.OwnerDocument.CreateElement(edmResponse.EntityMetadata.LogicalName, null);
             parentNode.AppendChild(tableElt);
 
             AddAttributes(tableElt, edmResponse.EntityMetadata.Attributes);
 
             return tableElt;
+        }
+
+        private static void ControlObjectTypeCode(XmlElement rootNode, IOrganizationService service)
+        {
+            var ns = rootNode.Attributes["xmlns"].Value;
+            var parts = ns.Split('/');
+            var entityCode = parts.Skip(parts.Length - 2).Take(1).First();
+            var entityName = parts.Skip(parts.Length - 3).Take(1).First();
+
+            var emd = ((RetrieveEntityResponse)service.Execute(new RetrieveEntityRequest
+            {
+                EntityFilters = EntityFilters.Entity,
+                LogicalName = entityName
+            })).EntityMetadata;
+
+            if (emd.ObjectTypeCode.Value != int.Parse(entityCode))
+            {
+                rootNode.SetAttribute("xmlns", ns.Replace(entityCode, emd.ObjectTypeCode.Value.ToString()));
+            }
         }
 
         private static List<string> GetRelationships(WordprocessingDocument doc)
@@ -181,6 +200,8 @@ namespace Futurez.Xrm.Tools.Helper
 
                     var initialEntity = xd.DocumentElement.FirstChild.Name;
 
+                    ControlObjectTypeCode((XmlElement)rootNode, service);
+
                     bw.ReportProgress(0, $"Loading table {initialEntity}...");
                     XmlNode tableElt = AddTable(rootNode, initialEntity, service);
 
@@ -195,7 +216,7 @@ namespace Futurez.Xrm.Tools.Helper
                                 Name = node.Name
                             });
 
-                            var relElt = newContent.CreateElement(node.Name, newContent.DocumentElement.NamespaceURI);
+                            var relElt = newContent.CreateElement(node.Name, tableElt.NamespaceURI);
                             tableElt.AppendChild(relElt);
 
                             if (response.RelationshipMetadata is OneToManyRelationshipMetadata otm)
@@ -235,6 +256,7 @@ namespace Futurez.Xrm.Tools.Helper
                 using (XmlTextReader xReader = new XmlTextReader(xmlPart.GetStream(FileMode.Open, FileAccess.Read)))
                 {
                     xReader.MoveToContent();
+
                     if (!xReader.NamespaceURI.StartsWith("urn:microsoft-crm/document-template")) continue;
 
                     XmlDocument xd = new XmlDocument();
@@ -245,6 +267,8 @@ namespace Futurez.Xrm.Tools.Helper
                     newContent.AppendChild(rootNode);
 
                     var initialEntity = xd.DocumentElement.FirstChild.Name;
+
+                    ControlObjectTypeCode((XmlElement)rootNode, service);
 
                     bw.ReportProgress(0, $"Loading table {initialEntity}...");
 
@@ -259,7 +283,7 @@ namespace Futurez.Xrm.Tools.Helper
                             Name = relationship
                         });
 
-                        var relElt = newContent.CreateElement(relationship, newContent.DocumentElement.NamespaceURI);
+                        var relElt = newContent.CreateElement(relationship, tableElt.NamespaceURI);
                         tableElt.AppendChild(relElt);
 
                         if (response.RelationshipMetadata is OneToManyRelationshipMetadata otm)

@@ -67,7 +67,7 @@ namespace Futurez.Entities
         public string FileName { get; private set; }
         public string FullLocalPath { get; private set; }
         public string TemplateType { get; private set; }
-        public byte[] FileContents { get; private set; }
+        public byte[] FileContents { get; set; }
         public string EntityTypeName { get; private set; }
         public int ObjectTypeCode { get; private set; }
 

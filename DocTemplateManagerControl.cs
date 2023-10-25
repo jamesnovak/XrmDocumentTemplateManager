@@ -1,4 +1,5 @@
 ﻿using Futurez.Entities;
+using Futurez.Xrm.Tools.Helper;
 using McTools.Xrm.Connection;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
@@ -834,6 +835,11 @@ namespace Futurez.Xrm.Tools
                             EntityState = EntityState.Changed
                         }
                     };
+
+                    var stream = new MemoryStream(fileToUpload.FileContents);
+                    WordHelper.RefreshColumns(stream, Service, w);
+                    fileToUpload.FileContents = stream.ToArray();
+
                     request.Target.Attributes["content"] = Convert.ToBase64String(fileToUpload.FileContents);
 
                     var response = Service.Execute(request);
