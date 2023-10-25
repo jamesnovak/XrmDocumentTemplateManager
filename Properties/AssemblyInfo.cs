@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Futurez Consulting, LLC")]
 [assembly: AssemblyProduct("Futurez.Xrm.Tools.DocTemplateManager")]
-[assembly: AssemblyCopyright("Copyright © Futurez Consulting 2018")]
+[assembly: AssemblyCopyright("Copyright © Futurez Consulting 2022")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
