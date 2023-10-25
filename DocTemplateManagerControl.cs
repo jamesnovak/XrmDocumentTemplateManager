@@ -27,6 +27,7 @@ namespace Futurez.Xrm.Tools
     {
         private EditTemplateControl _editControl = null;
         private UploadMultipleSummary _uploadSummary = null;
+        private List<ListViewItem> listViewItemsColl = new List<ListViewItem>();
 
         public DocTemplateManagerControl()
         {
@@ -121,7 +122,7 @@ namespace Futurez.Xrm.Tools
             listViewDocumentTemplates.Refresh();
             listViewDocumentTemplates.SuspendLayout();
 
-            var listViewItemsColl = new List<ListViewItem>();
+            listViewItemsColl = new List<ListViewItem>();
 
             int progress = 0;
             int counter = 0;
@@ -150,6 +151,10 @@ namespace Futurez.Xrm.Tools
             // NOW add the items to avoid flicker
             listViewDocumentTemplates.Items.AddRange(listViewItemsColl.ToArray<ListViewItem>());
             listViewDocumentTemplates.ResumeLayout();
+
+            txtSearch.TextChanged -= txtSearch_TextChanged;
+            txtSearch.Text = "";
+            txtSearch.TextChanged += txtSearch_TextChanged;
         }
 
         #region Document Template related methods
@@ -836,19 +841,29 @@ namespace Futurez.Xrm.Tools
                         }
                     };
 
-                    var stream = new MemoryStream(fileToUpload.FileContents);
-                    WordHelper.RefreshColumns(stream, Service, w);
-                    fileToUpload.FileContents = stream.ToArray();
+                    using (var stream = new MemoryStream())
+                    {
+                        using (var tmpStream = new MemoryStream(fileToUpload.FileContents))
+                            tmpStream.CopyTo(stream, Convert.ToInt32(tmpStream.Length));
 
+                        WordHelper.RefreshColumns(stream, Service, w);
+                        fileToUpload.FileContents = stream.ToArray();
+                    }
                     request.Target.Attributes["content"] = Convert.ToBase64String(fileToUpload.FileContents);
 
-                    var response = Service.Execute(request);
+                    Service.Execute(request);
                 },
                 ProgressChanged = e =>
                 {
                 },
                 PostWorkCallBack = e =>
                 {
+                    if (e.Error != null)
+                    {
+                        MessageBox.Show(this, $"An error occured when updating the template:\n\n{e.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
                     LoadDocumentTemplates();
                 },
                 AsyncArgument = fileUpload,
@@ -1065,6 +1080,12 @@ namespace Futurez.Xrm.Tools
         private void tsbUpdateLocalWordTemplate_Click(object sender, EventArgs e)
         {
             ExecuteMethod(UpdateLocalWordTemplate);
+        }
+
+        private void txtSearch_TextChanged(object sender, EventArgs e)
+        {
+            listViewDocumentTemplates.Items.Clear();
+            listViewDocumentTemplates.Items.AddRange(listViewItemsColl.Where(l => txtSearch.Text.Length == 0 || l.Text.ToLower().IndexOf(txtSearch.Text.ToLower()) >= 0).ToArray());
         }
 
         private void UpdateLocalWordTemplate()

@@ -33,8 +33,8 @@ namespace Futurez.Xrm.Tools
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.ListViewGroup listViewGroup3 = new System.Windows.Forms.ListViewGroup("Microsoft Word", System.Windows.Forms.HorizontalAlignment.Left);
-            System.Windows.Forms.ListViewGroup listViewGroup4 = new System.Windows.Forms.ListViewGroup("Microsoft Excel", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup1 = new System.Windows.Forms.ListViewGroup("Microsoft Word", System.Windows.Forms.HorizontalAlignment.Left);
+            System.Windows.Forms.ListViewGroup listViewGroup2 = new System.Windows.Forms.ListViewGroup("Microsoft Excel", System.Windows.Forms.HorizontalAlignment.Left);
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(DocTemplateManagerControl));
             this.toolTipInstructions = new System.Windows.Forms.ToolTip(this.components);
             this.colHeadModifiedOn = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -46,6 +46,7 @@ namespace Futurez.Xrm.Tools
             this.listViewDocumentTemplates = new System.Windows.Forms.ListView();
             this.colHeadEntityName = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.panelSplitter = new System.Windows.Forms.Panel();
+            this.pnlSearch = new System.Windows.Forms.Panel();
             this.toolStripMenuItemDeleteTemplates = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemDeactivateTemplates = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemActivateTemplates = new System.Windows.Forms.ToolStripMenuItem();
@@ -62,16 +63,21 @@ namespace Futurez.Xrm.Tools
             this.toolButtonLoadTemplates = new System.Windows.Forms.ToolStripButton();
             this.toolButtonCloseTab = new System.Windows.Forms.ToolStripButton();
             this.toolStripMain = new System.Windows.Forms.ToolStrip();
-            this.labelInstructions = new System.Windows.Forms.Label();
-            this.scMain = new System.Windows.Forms.SplitContainer();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.tsbUpdateLocalWordTemplate = new System.Windows.Forms.ToolStripButton();
+            this.labelInstructions = new System.Windows.Forms.Label();
+            this.scMain = new System.Windows.Forms.SplitContainer();
+            this.lblSearch = new System.Windows.Forms.Label();
+            this.pnlSearchSub = new System.Windows.Forms.Panel();
+            this.txtSearch = new System.Windows.Forms.TextBox();
             this.panelSplitter.SuspendLayout();
+            this.pnlSearch.SuspendLayout();
             this.toolStripMain.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.scMain)).BeginInit();
             this.scMain.Panel1.SuspendLayout();
             this.scMain.Panel2.SuspendLayout();
             this.scMain.SuspendLayout();
+            this.pnlSearchSub.SuspendLayout();
             this.SuspendLayout();
             // 
             // toolTipInstructions
@@ -105,10 +111,10 @@ namespace Futurez.Xrm.Tools
             // splitterMain
             // 
             this.splitterMain.Dock = System.Windows.Forms.DockStyle.Right;
-            this.splitterMain.Location = new System.Drawing.Point(1036, 0);
+            this.splitterMain.Location = new System.Drawing.Point(969, 0);
             this.splitterMain.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.splitterMain.Name = "splitterMain";
-            this.splitterMain.Size = new System.Drawing.Size(21, 754);
+            this.splitterMain.Size = new System.Drawing.Size(21, 669);
             this.splitterMain.TabIndex = 6;
             this.splitterMain.TabStop = false;
             // 
@@ -116,10 +122,10 @@ namespace Futurez.Xrm.Tools
             // 
             this.propertyGridDetails.Dock = System.Windows.Forms.DockStyle.Right;
             this.propertyGridDetails.LineColor = System.Drawing.SystemColors.ControlDark;
-            this.propertyGridDetails.Location = new System.Drawing.Point(1057, 0);
+            this.propertyGridDetails.Location = new System.Drawing.Point(990, 0);
             this.propertyGridDetails.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.propertyGridDetails.Name = "propertyGridDetails";
-            this.propertyGridDetails.Size = new System.Drawing.Size(824, 754);
+            this.propertyGridDetails.Size = new System.Drawing.Size(824, 669);
             this.propertyGridDetails.TabIndex = 5;
             this.propertyGridDetails.ToolbarVisible = false;
             // 
@@ -133,20 +139,21 @@ namespace Futurez.Xrm.Tools
             this.colHeadEntityName});
             this.listViewDocumentTemplates.Dock = System.Windows.Forms.DockStyle.Fill;
             this.listViewDocumentTemplates.FullRowSelect = true;
-            listViewGroup3.Header = "Microsoft Word";
-            listViewGroup3.Name = "Microsoft Word";
-            listViewGroup3.Tag = "Microsoft Word";
-            listViewGroup4.Header = "Microsoft Excel";
-            listViewGroup4.Name = "Microsoft Excel";
-            listViewGroup4.Tag = "Microsoft Excel";
+            listViewGroup1.Header = "Microsoft Word";
+            listViewGroup1.Name = "Microsoft Word";
+            listViewGroup1.Tag = "Microsoft Word";
+            listViewGroup2.Header = "Microsoft Excel";
+            listViewGroup2.Name = "Microsoft Excel";
+            listViewGroup2.Tag = "Microsoft Excel";
             this.listViewDocumentTemplates.Groups.AddRange(new System.Windows.Forms.ListViewGroup[] {
-            listViewGroup3,
-            listViewGroup4});
+            listViewGroup1,
+            listViewGroup2});
             this.listViewDocumentTemplates.HideSelection = false;
-            this.listViewDocumentTemplates.Location = new System.Drawing.Point(0, 0);
+            this.listViewDocumentTemplates.Location = new System.Drawing.Point(0, 36);
             this.listViewDocumentTemplates.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.listViewDocumentTemplates.Name = "listViewDocumentTemplates";
-            this.listViewDocumentTemplates.Size = new System.Drawing.Size(1881, 754);
+            this.listViewDocumentTemplates.Size = new System.Drawing.Size(969, 633);
+            this.listViewDocumentTemplates.Sorting = System.Windows.Forms.SortOrder.Ascending;
             this.listViewDocumentTemplates.TabIndex = 4;
             this.listViewDocumentTemplates.Tag = "0";
             this.listViewDocumentTemplates.UseCompatibleStateImageBehavior = false;
@@ -164,15 +171,26 @@ namespace Futurez.Xrm.Tools
             // 
             // panelSplitter
             // 
+            this.panelSplitter.Controls.Add(this.listViewDocumentTemplates);
+            this.panelSplitter.Controls.Add(this.pnlSearch);
             this.panelSplitter.Controls.Add(this.splitterMain);
             this.panelSplitter.Controls.Add(this.propertyGridDetails);
-            this.panelSplitter.Controls.Add(this.listViewDocumentTemplates);
             this.panelSplitter.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelSplitter.Location = new System.Drawing.Point(0, 0);
             this.panelSplitter.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.panelSplitter.Name = "panelSplitter";
-            this.panelSplitter.Size = new System.Drawing.Size(1881, 754);
+            this.panelSplitter.Size = new System.Drawing.Size(1814, 669);
             this.panelSplitter.TabIndex = 6;
+            // 
+            // pnlSearch
+            // 
+            this.pnlSearch.Controls.Add(this.pnlSearchSub);
+            this.pnlSearch.Controls.Add(this.lblSearch);
+            this.pnlSearch.Dock = System.Windows.Forms.DockStyle.Top;
+            this.pnlSearch.Location = new System.Drawing.Point(0, 0);
+            this.pnlSearch.Name = "pnlSearch";
+            this.pnlSearch.Size = new System.Drawing.Size(969, 36);
+            this.pnlSearch.TabIndex = 7;
             // 
             // toolStripMenuItemDeleteTemplates
             // 
@@ -254,7 +272,7 @@ namespace Futurez.Xrm.Tools
             this.toolButtonUpload.Image = ((System.Drawing.Image)(resources.GetObject("toolButtonUpload.Image")));
             this.toolButtonUpload.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolButtonUpload.Name = "toolButtonUpload";
-            this.toolButtonUpload.Size = new System.Drawing.Size(184, 29);
+            this.toolButtonUpload.Size = new System.Drawing.Size(192, 29);
             this.toolButtonUpload.Text = "Upload Template(s)";
             this.toolButtonUpload.ToolTipText = "Upload new Template Document and replace existing Template Content";
             this.toolButtonUpload.Visible = false;
@@ -296,7 +314,7 @@ namespace Futurez.Xrm.Tools
             this.toolButtonDownload.Image = ((System.Drawing.Image)(resources.GetObject("toolButtonDownload.Image")));
             this.toolButtonDownload.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolButtonDownload.Name = "toolButtonDownload";
-            this.toolButtonDownload.Size = new System.Drawing.Size(208, 29);
+            this.toolButtonDownload.Size = new System.Drawing.Size(216, 29);
             this.toolButtonDownload.Text = "Download Template(s)";
             this.toolButtonDownload.Click += new System.EventHandler(this.toolButtonDownload_Click);
             // 
@@ -305,7 +323,7 @@ namespace Futurez.Xrm.Tools
             this.toolButtonLoadTemplates.Image = ((System.Drawing.Image)(resources.GetObject("toolButtonLoadTemplates.Image")));
             this.toolButtonLoadTemplates.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolButtonLoadTemplates.Name = "toolButtonLoadTemplates";
-            this.toolButtonLoadTemplates.Size = new System.Drawing.Size(155, 29);
+            this.toolButtonLoadTemplates.Size = new System.Drawing.Size(163, 29);
             this.toolButtonLoadTemplates.Text = "Load Templates";
             this.toolButtonLoadTemplates.ToolTipText = "Load / Reload Templates from the server";
             this.toolButtonLoadTemplates.Click += new System.EventHandler(this.toolButtonLoadTemplates_Click);
@@ -315,12 +333,13 @@ namespace Futurez.Xrm.Tools
             this.toolButtonCloseTab.Image = ((System.Drawing.Image)(resources.GetObject("toolButtonCloseTab.Image")));
             this.toolButtonCloseTab.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.toolButtonCloseTab.Name = "toolButtonCloseTab";
-            this.toolButtonCloseTab.Size = new System.Drawing.Size(107, 29);
+            this.toolButtonCloseTab.Size = new System.Drawing.Size(115, 29);
             this.toolButtonCloseTab.Text = "Close Tab";
             this.toolButtonCloseTab.Click += new System.EventHandler(this.toolButtonCloseTab_Click);
             // 
             // toolStripMain
             // 
+            this.toolStripMain.ImageScalingSize = new System.Drawing.Size(24, 24);
             this.toolStripMain.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.toolButtonCloseTab,
             this.toolButtonLoadTemplates,
@@ -333,38 +352,9 @@ namespace Futurez.Xrm.Tools
             this.toolStripMain.Location = new System.Drawing.Point(0, 0);
             this.toolStripMain.Name = "toolStripMain";
             this.toolStripMain.Padding = new System.Windows.Forms.Padding(0, 0, 3, 0);
-            this.toolStripMain.Size = new System.Drawing.Size(1881, 34);
+            this.toolStripMain.Size = new System.Drawing.Size(1814, 34);
             this.toolStripMain.TabIndex = 0;
             this.toolStripMain.Text = "Main";
-            // 
-            // labelInstructions
-            // 
-            this.labelInstructions.BackColor = System.Drawing.SystemColors.Info;
-            this.labelInstructions.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.labelInstructions.Location = new System.Drawing.Point(0, 0);
-            this.labelInstructions.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.labelInstructions.Name = "labelInstructions";
-            this.labelInstructions.Size = new System.Drawing.Size(1881, 261);
-            this.labelInstructions.TabIndex = 5;
-            this.labelInstructions.Text = resources.GetString("labelInstructions.Text");
-            // 
-            // scMain
-            // 
-            this.scMain.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.scMain.Location = new System.Drawing.Point(0, 34);
-            this.scMain.Name = "scMain";
-            this.scMain.Orientation = System.Windows.Forms.Orientation.Horizontal;
-            // 
-            // scMain.Panel1
-            // 
-            this.scMain.Panel1.Controls.Add(this.panelSplitter);
-            // 
-            // scMain.Panel2
-            // 
-            this.scMain.Panel2.Controls.Add(this.labelInstructions);
-            this.scMain.Size = new System.Drawing.Size(1881, 1019);
-            this.scMain.SplitterDistance = 754;
-            this.scMain.TabIndex = 7;
             // 
             // toolStripSeparator2
             // 
@@ -381,6 +371,65 @@ namespace Futurez.Xrm.Tools
             this.tsbUpdateLocalWordTemplate.Text = "Update local Word Template";
             this.tsbUpdateLocalWordTemplate.Click += new System.EventHandler(this.tsbUpdateLocalWordTemplate_Click);
             // 
+            // labelInstructions
+            // 
+            this.labelInstructions.BackColor = System.Drawing.SystemColors.Info;
+            this.labelInstructions.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.labelInstructions.Location = new System.Drawing.Point(0, 0);
+            this.labelInstructions.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.labelInstructions.Name = "labelInstructions";
+            this.labelInstructions.Size = new System.Drawing.Size(1814, 233);
+            this.labelInstructions.TabIndex = 5;
+            this.labelInstructions.Text = resources.GetString("labelInstructions.Text");
+            // 
+            // scMain
+            // 
+            this.scMain.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.scMain.Location = new System.Drawing.Point(0, 34);
+            this.scMain.Name = "scMain";
+            this.scMain.Orientation = System.Windows.Forms.Orientation.Horizontal;
+            // 
+            // scMain.Panel1
+            // 
+            this.scMain.Panel1.Controls.Add(this.panelSplitter);
+            // 
+            // scMain.Panel2
+            // 
+            this.scMain.Panel2.AutoScroll = true;
+            this.scMain.Panel2.Controls.Add(this.labelInstructions);
+            this.scMain.Size = new System.Drawing.Size(1814, 906);
+            this.scMain.SplitterDistance = 669;
+            this.scMain.TabIndex = 7;
+            // 
+            // lblSearch
+            // 
+            this.lblSearch.Dock = System.Windows.Forms.DockStyle.Left;
+            this.lblSearch.Location = new System.Drawing.Point(0, 0);
+            this.lblSearch.Name = "lblSearch";
+            this.lblSearch.Size = new System.Drawing.Size(87, 36);
+            this.lblSearch.TabIndex = 0;
+            this.lblSearch.Text = "Search";
+            this.lblSearch.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // pnlSearchSub
+            // 
+            this.pnlSearchSub.Controls.Add(this.txtSearch);
+            this.pnlSearchSub.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlSearchSub.Location = new System.Drawing.Point(87, 0);
+            this.pnlSearchSub.Name = "pnlSearchSub";
+            this.pnlSearchSub.Padding = new System.Windows.Forms.Padding(0, 4, 0, 0);
+            this.pnlSearchSub.Size = new System.Drawing.Size(882, 36);
+            this.pnlSearchSub.TabIndex = 2;
+            // 
+            // txtSearch
+            // 
+            this.txtSearch.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.txtSearch.Location = new System.Drawing.Point(0, 4);
+            this.txtSearch.Name = "txtSearch";
+            this.txtSearch.Size = new System.Drawing.Size(882, 26);
+            this.txtSearch.TabIndex = 2;
+            this.txtSearch.TextChanged += new System.EventHandler(this.txtSearch_TextChanged);
+            // 
             // DocTemplateManagerControl
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
@@ -389,14 +438,17 @@ namespace Futurez.Xrm.Tools
             this.Controls.Add(this.toolStripMain);
             this.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.Name = "DocTemplateManagerControl";
-            this.Size = new System.Drawing.Size(1881, 1053);
+            this.Size = new System.Drawing.Size(1814, 940);
             this.panelSplitter.ResumeLayout(false);
+            this.pnlSearch.ResumeLayout(false);
             this.toolStripMain.ResumeLayout(false);
             this.toolStripMain.PerformLayout();
             this.scMain.Panel1.ResumeLayout(false);
             this.scMain.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.scMain)).EndInit();
             this.scMain.ResumeLayout(false);
+            this.pnlSearchSub.ResumeLayout(false);
+            this.pnlSearchSub.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -434,5 +486,9 @@ namespace Futurez.Xrm.Tools
         private SplitContainer scMain;
         private ToolStripSeparator toolStripSeparator2;
         private ToolStripButton tsbUpdateLocalWordTemplate;
+        private Panel pnlSearch;
+        private Panel pnlSearchSub;
+        private TextBox txtSearch;
+        private Label lblSearch;
     }
 }
