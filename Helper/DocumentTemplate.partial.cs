@@ -5,6 +5,7 @@ using Microsoft.Xrm.Sdk.Query;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 
 namespace Futurez.Entities
@@ -12,10 +13,18 @@ namespace Futurez.Entities
     [DefaultProperty("Name")]
     public partial class DocumentTemplateEdit
     {
+        private string description;
+        private string name;
+        private string originalDescription;
+        private string originalName;
+
         public DocumentTemplateEdit(Entity template)
         {
             Id = template.Id;
+            originalName = template.GetAttribValue<string>("name");
             Name = template.GetAttribValue<string>("name");
+            originalDescription = template.GetAttribValue<string>("description");
+            Language = CultureInfo.GetCultureInfo(template.GetAttributeValue<int>("languagecode")).DisplayName;
             Description = template.GetAttribValue<string>("description");
             Type = template.GetFormattedAttribValue("documenttype");
             TypeValue = template.GetAttribValue<OptionSetValue>("documenttype").Value;
@@ -54,6 +63,10 @@ namespace Futurez.Entities
             FileName = Name + ext;
         }
 
+        public event EventHandler ContentChanged;
+
+        public event EventHandler ContentChangeRollbacked;
+
         #region Attributes
 
         [DisplayName("Associated Entity Name")]
@@ -86,7 +99,17 @@ namespace Futurez.Entities
         [Description("Description for this Document Template")]
         [Category("General")]
         [EditorAttribute("System.ComponentModel.Design.MultilineStringEditor, System.Design", "System.Drawing.Design.UITypeEditor")]
-        public string Description { get; private set; }
+        public string Description
+        {
+            get { return description; }
+            set
+            {
+                description = value;
+                if (description?.Length == 0) description = null;
+                if (originalDescription == description && originalName == name) ContentChangeRollbacked?.Invoke(this, new EventArgs());
+                else ContentChanged?.Invoke(this, new EventArgs());
+            }
+        }
 
         [Description("Entity Logical Name")]
         [Category("General")]
@@ -105,7 +128,6 @@ namespace Futurez.Entities
 
         [Description("Language setting for this Document Template")]
         [Category("Locked")]
-        [Browsable(false)]
         public string Language { get; private set; }
 
         [DisplayName("Modified By")]
@@ -120,7 +142,18 @@ namespace Futurez.Entities
 
         [Description("Document Template Name")]
         [Category("General")]
-        public string Name { get; private set; }
+        [DisplayName("Name")]
+        public string Name
+        {
+            get { return name; }
+            set
+            {
+                name = value;
+                if (name?.Length == 0) name = null;
+                if (originalDescription == description && originalName == name) ContentChangeRollbacked?.Invoke(this, new EventArgs());
+                else ContentChanged?.Invoke(this, new EventArgs());
+            }
+        }
 
         [Description("Current Document Template Status")]
         [Category("Locked")]
@@ -158,7 +191,7 @@ namespace Futurez.Entities
             var templates = new List<DocumentTemplateEdit>();
 
             var columns = new string[] {
-                "name", "documenttemplateid", "status", "associatedentitytypecode", "documenttype", "modifiedby", "modifiedon", "createdby", "createdon", "description"
+                "name", "documenttemplateid", "status", "associatedentitytypecode", "documenttype", "modifiedby", "modifiedon", "createdby", "createdon", "description","languagecode"
             };
             var query = new QueryExpression()
             {
@@ -243,5 +276,21 @@ namespace Futurez.Entities
         }
 
         #endregion Helper Methods
+
+        public void Save(IOrganizationService service)
+        {
+            service.Update(new Entity("documenttemplate")
+            {
+                Id = Id,
+                Attributes =
+                {
+                    {"name", name },
+                    {"description", description},
+                }
+            });
+
+            originalDescription = description;
+            originalName = name;
+        }
     }
 }

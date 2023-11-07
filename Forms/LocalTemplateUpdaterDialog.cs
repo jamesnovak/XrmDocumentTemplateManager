@@ -32,7 +32,7 @@ namespace Futurez.Xrm.Tools
             {
                 txtFilePath.Text = ofd.FileName;
 
-                if (!WordHelper.TryValidateSourceTable(_service, ofd.FileName, out string table, out string errorMessage))
+                if (!WordHelper.TryValidateSourceTable(_service, ofd.FileName, out string table, out string _, out string errorMessage))
                 {
                     MessageBox.Show(this, errorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     btnRefreshColumns.Enabled = false;

@@ -61,9 +61,10 @@ namespace Futurez.Xrm.Tools.Helper
             }
         }
 
-        public static bool TryValidateSourceTable(IOrganizationService service, string filePath, out string table, out string errorMessage)
+        public static bool TryValidateSourceTable(IOrganizationService service, string filePath, out string table, out string tableDisplayName, out string errorMessage)
         {
             table = "";
+            tableDisplayName = "";
             using (WordprocessingDocument doc = WordprocessingDocument.Open(filePath, false))
             {
                 foreach (var xmlPart in doc.MainDocumentPart.CustomXmlParts)
@@ -77,12 +78,13 @@ namespace Futurez.Xrm.Tools.Helper
 
                         try
                         {
-                            service.Execute(new RetrieveEntityRequest
+                            var emd = ((RetrieveEntityResponse)service.Execute(new RetrieveEntityRequest
                             {
                                 EntityFilters = EntityFilters.Entity,
                                 LogicalName = entity
-                            });
+                            })).EntityMetadata;
                             table = entity;
+                            tableDisplayName = emd.DisplayName?.UserLocalizedLabel?.Label ?? emd.SchemaName;
                             errorMessage = "";
                             return true;
                         }
