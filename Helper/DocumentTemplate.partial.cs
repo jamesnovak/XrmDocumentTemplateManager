@@ -30,6 +30,10 @@ namespace Futurez.Entities
             TypeValue = template.GetAttribValue<OptionSetValue>("documenttype").Value;
             AssociatedEntity = template.GetFormattedAttribValue("associatedentitytypecode");
             AssociatedEntityLogicalName = template.GetAttribValue<string>("associatedentitytypecode");
+            if (string.IsNullOrEmpty(AssociatedEntity))
+            {
+                AssociatedEntity = AssociatedEntityLogicalName + " *";
+            }
 
             Status = template.GetFormattedAttribValue("status");
 
