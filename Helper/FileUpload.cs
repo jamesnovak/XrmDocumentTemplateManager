@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Xml.Linq;
 
 namespace Futurez.Entities
 {
@@ -130,7 +129,7 @@ namespace Futurez.Entities
         /// <returns></returns>
         private void GetETNAndOTCFromDocument()
         {
-            const string rootPath = @"urn:microsoft-crm/document-template/";
+            const string rootPath = "urn:microsoft-crm/document-template";
 
             string xmlBody = null;
             try
@@ -148,33 +147,19 @@ namespace Futurez.Entities
                         .Where(p => p.OpenXmlPart is CustomXmlPart)
                         .Select(c => (c.OpenXmlPart as CustomXmlPart).CustomXmlPropertiesPart);
 
-                    foreach (var part in custParts)
+                    foreach (var part in wordDoc.MainDocumentPart.CustomXmlParts)
                     {
-                        if (part.RootElement.InnerXml.Contains(rootPath))
+                        using (System.Xml.XmlTextReader xReader = new System.Xml.XmlTextReader(part.GetStream(FileMode.Open, FileAccess.Read)))
                         {
-                            xmlBody = part.RootElement.InnerXml;
-                            break;
+                            xReader.MoveToContent();
+                            if (!xReader.NamespaceURI.StartsWith(rootPath)) continue;
+
+                            var etn_otc = xReader.NamespaceURI.Split('/');
+                            EntityTypeName = etn_otc[2];
+                            ObjectTypeCode = int.Parse(etn_otc[3]);
+
+                            return;
                         }
-                    }
-                }
-
-                if (xmlBody != null)
-                {
-                    // get the ETC from the first instance we can find of the ds:uri attribute.
-                    var ns = @"{http://schemas.openxmlformats.org/officeDocument/2006/customXml}";
-                    using (var textStream = new StringReader(xmlBody))
-                    {
-                        XDocument doc = XDocument.Load(textStream);
-                        XAttribute attrib = doc
-                            .Descendants($"{ns}schemaRef")
-                            .Attributes($"{ns}uri")
-                            .Where<XAttribute>(a => a.Value.StartsWith(rootPath))
-                            .FirstOrDefault();
-
-                        var etn_otc = attrib.Value.Substring(rootPath.Length).Split('/');
-
-                        EntityTypeName = etn_otc[0];
-                        ObjectTypeCode = int.Parse(etn_otc[1]);
                     }
                 }
             }
