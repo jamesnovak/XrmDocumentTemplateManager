@@ -1,10 +1,14 @@
 ﻿using Futurez.Entities;
+using Futurez.Xrm.Tools.AppCode;
+using Futurez.Xrm.Tools.Forms;
+using Futurez.Xrm.Tools.Helper;
 using McTools.Xrm.Connection;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -26,6 +30,7 @@ namespace Futurez.Xrm.Tools
     {
         private EditTemplateControl _editControl = null;
         private UploadMultipleSummary _uploadSummary = null;
+        private List<ListViewItem> listViewItemsColl = new List<ListViewItem>();
 
         public DocTemplateManagerControl()
         {
@@ -33,6 +38,12 @@ namespace Futurez.Xrm.Tools
         }
 
         public event EventHandler<StatusBarMessageEventArgs> SendMessageToStatusBar;
+
+        /// <summary>
+        /// Shorten description string if over 100 char
+        /// </summary>
+        /// <param name="description"></param>
+        public static string LimitDescription(string description) => description.Length > 100 ? description : description.Substring(0, 100);
 
         /// <summary>
         /// This event occurs when the connection has been updated in <see cref="XrmToolBox"/>
@@ -45,6 +56,43 @@ namespace Futurez.Xrm.Tools
 
             // load the document templates again now that the connection has changed
             LoadDocumentTemplates();
+        }
+
+        private void btnSaveTemplate_Click(object sender, EventArgs e)
+        {
+            ToggleMainControlsEnabled(false);
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Updating template...",
+                Work = (s, evt) =>
+                {
+                    ((DocumentTemplateEdit)propertyGridDetails.SelectedObject).Save(Service);
+                },
+                PostWorkCallBack = evt =>
+                {
+                    ToggleMainControlsEnabled(true);
+                    if (evt.Error != null)
+                    {
+                        MessageBox.Show(this, $"An error occured when saving template:\n\n{evt.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    btnSaveTemplate.Enabled = false;
+                    var item = listViewDocumentTemplates.Items.Cast<ListViewItem>().FirstOrDefault(i => i.Tag == propertyGridDetails.SelectedObject);
+                    if (item != null) item.Text = ((DocumentTemplateEdit)propertyGridDetails.SelectedObject).Name;
+                }
+            });
+        }
+
+        private void cbbEntity_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            txtSearch_TextChanged(txtSearch, new EventArgs());
+        }
+
+        private void cbbLanguage_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            txtSearch_TextChanged(txtSearch, new EventArgs());
         }
 
         private void EditControl_OnComplete(bool userCanceled, EventArgs e)
@@ -76,12 +124,12 @@ namespace Futurez.Xrm.Tools
                 {
                     try
                     {
-                        w.ReportProgress(0, "Loading Templates from CRM");
+                        w.ReportProgress(0, "Loading Templates...");
                         e.Result = DocumentTemplateEdit.GetDocumentTemplates(Service);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show(ex.Message);
+                        MessageBox.Show(this, ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 },
                 ProgressChanged = e =>
@@ -114,12 +162,18 @@ namespace Futurez.Xrm.Tools
             listViewDocumentTemplates.Refresh();
             listViewDocumentTemplates.SuspendLayout();
 
-            var listViewItemsColl = new List<ListViewItem>();
+            listViewItemsColl = new List<ListViewItem>();
+
+            List<string> tables = new List<string>();
+            List<string> languages = new List<string>();
 
             int progress = 0;
             int counter = 0;
             foreach (var template in templates)
             {
+                if (!tables.Contains(template.AssociatedEntity)) tables.Add(template.AssociatedEntity);
+                if (!languages.Contains(template.Language)) languages.Add(template.Language);
+
                 progress = counter / templates.Count * 100;
 
                 // we don't want the content!
@@ -136,21 +190,41 @@ namespace Futurez.Xrm.Tools
                 lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.CreatedOn.ToString()) { Tag = "CreatedOn", Name = "CreatedOn" });
                 lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.ModifiedOn.ToString()) { Tag = "ModifiedOn", Name = "ModifiedOn" });
                 lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.AssociatedEntity) { Tag = "Associated Entity", Name = "Associated Entity" });
+                lvItem.SubItems.Add(new ListViewItem.ListViewSubItem(lvItem, template.Language) { Tag = "Language", Name = "Language" });
 
                 listViewItemsColl.Add(lvItem);
             }
 
+            cbbEntity.SelectedIndexChanged -= cbbEntity_SelectedIndexChanged;
+            cbbLanguage.SelectedIndexChanged -= cbbLanguage_SelectedIndexChanged;
+            cbbEntity.Items.Clear();
+            cbbLanguage.Items.Clear();
+            tables.Sort();
+            languages.Sort();
+            tables.Insert(0, "-- All --");
+            languages.Insert(0, "-- All --");
+            cbbEntity.Items.AddRange(tables.ToArray());
+            cbbLanguage.Items.AddRange(languages.ToArray());
+            cbbEntity.SelectedIndex = 0;
+            cbbLanguage.SelectedIndex = 0;
+            cbbEntity.SelectedIndexChanged += cbbEntity_SelectedIndexChanged;
+            cbbLanguage.SelectedIndexChanged += cbbLanguage_SelectedIndexChanged;
+
             // NOW add the items to avoid flicker
             listViewDocumentTemplates.Items.AddRange(listViewItemsColl.ToArray<ListViewItem>());
             listViewDocumentTemplates.ResumeLayout();
+
+            txtSearch.TextChanged -= txtSearch_TextChanged;
+            txtSearch.Text = "";
+            txtSearch.TextChanged += txtSearch_TextChanged;
         }
 
         #region Document Template related methods
 
         private void PerformActivateTemplates()
         {
-            var confirmMessage = "Would you like to activate the selected templates in CRM?";
-            if (MessageBox.Show(confirmMessage, "Confrim Activate Template(s)", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            var confirmMessage = "Would you like to activate the selected templates?";
+            if (MessageBox.Show(this, confirmMessage, "Confrim Activate Template(s)", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 // get the file up there!
                 ExecuteMethod(PerformBulkActionTemplates, BulkAction.Activate);
@@ -169,17 +243,17 @@ namespace Futurez.Xrm.Tools
             {
                 case BulkAction.Activate:
                     message = "Activating selected Document Templates";
-                    progressMessage = "activating Document Templates in CRM";
+                    progressMessage = "activating Document Templates in Dataverse";
                     break;
 
                 case BulkAction.Deactivate:
                     message = "Deactivating selected Document Templates";
-                    progressMessage = "deactivating Document Templates in CRM";
+                    progressMessage = "deactivating Document Templates in Dataverse";
                     break;
 
                 case BulkAction.Delete:
                     message = "Deleting selected Document Templates";
-                    progressMessage = "deleting Document Templates from CRM";
+                    progressMessage = "deleting Document Templates from Dataverse";
                     break;
             }
 
@@ -245,7 +319,7 @@ namespace Futurez.Xrm.Tools
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show("An error occured with one or more templates:\n" + ex.Message);
+                        MessageBox.Show(this, "An error occured with one or more templates:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 },
                 ProgressChanged = e =>
@@ -265,8 +339,8 @@ namespace Futurez.Xrm.Tools
 
         private void PerformDeactivateTemplates()
         {
-            var confirmMessage = "Would you like to deactivate the selected templates in CRM?";
-            if (MessageBox.Show(confirmMessage, "Confrim Deactivate Template(s)", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            var confirmMessage = "Would you like to deactivate the selected templates?";
+            if (MessageBox.Show(this, confirmMessage, "Confrim Deactivate Template(s)", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 // get the file up there!
                 ExecuteMethod(PerformBulkActionTemplates, BulkAction.Deactivate);
@@ -278,8 +352,8 @@ namespace Futurez.Xrm.Tools
         /// </summary>
         private void PerformDeleteTemplates()
         {
-            var confirmMessage = "Would you like to delete the selected templates from CRM?\nNOTE: THIS ACTION CANNOT BE UNDONE.";
-            if (MessageBox.Show(confirmMessage, "Confrim Delete Template(s)", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            var confirmMessage = "Would you like to delete the selected templates?\n\nNOTE: THIS ACTION CANNOT BE UNDONE.";
+            if (MessageBox.Show(this, confirmMessage, "Confrim Delete Template(s)", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 // get the file up there!
                 ExecuteMethod(PerformBulkActionTemplates, BulkAction.Delete);
@@ -342,10 +416,9 @@ namespace Futurez.Xrm.Tools
         /// <param name="enabled"></param>
         private void ToggleMainControlsEnabled(bool enabled)
         {
-            Enabled = enabled;
             toolStripMain.Enabled = enabled;
-            panelSplitter.Enabled = enabled;
-            labelInstructions.Enabled = enabled;
+            propertyGridDetails.Enabled = enabled;
+            templateActionsControl1.Enabled = enabled;
         }
 
         /// <summary>
@@ -354,7 +427,7 @@ namespace Futurez.Xrm.Tools
         private void UpdateControlsForSelection()
         {
             var count = 0;
-
+            var lvItems = listViewDocumentTemplates.SelectedItems.Cast<ListViewItem>();
             if (listViewDocumentTemplates.SelectedItems != null)
             {
                 count = listViewDocumentTemplates.SelectedItems.Count;
@@ -366,12 +439,15 @@ namespace Futurez.Xrm.Tools
             bool singleSelect = (count == 1);
             bool multiSelect = (count > 0);
 
+            bool allSameType = lvItems.All(i => ((DocumentTemplateEdit)i.Tag).TypeValue == 1) || listViewDocumentTemplates.SelectedItems.Cast<ListViewItem>().All(i => ((DocumentTemplateEdit)i.Tag).TypeValue == 2);
+            string firstType = ((DocumentTemplateEdit)lvItems.FirstOrDefault()?.Tag)?.TypeValue == 2 ? "docx" : "xlsm";
+
             // toolButtonUpload.Enabled = singleSelect;
             toolStripMenuItemEditTemplate.Enabled = singleSelect;
             toolStripMenuItemUploadSingle.Enabled = singleSelect;
 
-            refreshAvailableColumnsToolStripMenuItem.Enabled = singleSelect && ((DocumentTemplateEdit)listViewDocumentTemplates.SelectedItems[0].Tag).TypeValue == 2;
-            selectRelationshipsToolStripMenuItem.Enabled = singleSelect && ((DocumentTemplateEdit)listViewDocumentTemplates.SelectedItems[0].Tag).TypeValue == 2;
+            refreshAvailableColumnsToolStripMenuItem.Enabled = singleSelect && ((DocumentTemplateEdit)lvItems.FirstOrDefault()?.Tag)?.TypeValue == 2;
+            selectRelationshipsToolStripMenuItem.Enabled = singleSelect && ((DocumentTemplateEdit)lvItems.FirstOrDefault()?.Tag)?.TypeValue == 2;
 
             toolButtonDownload.Enabled = multiSelect;
             toolStripMenuItemDeleteTemplates.Enabled = multiSelect;
@@ -379,13 +455,23 @@ namespace Futurez.Xrm.Tools
             toolStripMenuItemActivateTemplates.Enabled = multiSelect;
 
             propertyGridDetails.SelectedObject = null;
+            propertyGridDetails.Visible = false;
+            btnSaveTemplate.Visible = false;
+            pnlSpacer1.Visible = false;
 
             if (count == 1)
             {
                 var item = listViewDocumentTemplates.SelectedItems[0];
                 var template = item.Tag as DocumentTemplateEdit;
+                template.ContentChanged += (sender, e) => { btnSaveTemplate.Enabled = true; };
+                template.ContentChangeRollbacked += (sender, e) => { btnSaveTemplate.Enabled = false; };
                 propertyGridDetails.SelectedObject = template;
+                propertyGridDetails.Visible = true;
+                btnSaveTemplate.Visible = true;
+                pnlSpacer1.Visible = true;
             }
+
+            templateActionsControl1.SetControlsState(allSameType ? firstType : "", count);
         }
 
         #endregion Common UI methods
@@ -413,12 +499,6 @@ namespace Futurez.Xrm.Tools
             }
 
             lv.Sort();
-        }
-
-        private void listViewDocumentTemplates_DoubleClick(object sender, EventArgs e)
-        {
-            UpdateControlsForSelection();
-            PerformEditTemplate();
         }
 
         private void listViewDocumentTemplates_KeyDown(object sender, KeyEventArgs e)
@@ -452,7 +532,7 @@ namespace Futurez.Xrm.Tools
         {
             if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
-                MessageBox.Show("Please select one or more templates to download.");
+                MessageBox.Show(this, "Please select one or more templates to download.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -465,7 +545,7 @@ namespace Futurez.Xrm.Tools
             // make sure they want to reload
             if (listViewDocumentTemplates.Items.Count > 0)
             {
-                if (MessageBox.Show("Clear the current list of Document Templates and reload from the server?", "Load Templates", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                if (MessageBox.Show(this, "Clear the current list of Document Templates and reload from the server?", "Load Templates", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                 {
                     return;
                 }
@@ -474,15 +554,11 @@ namespace Futurez.Xrm.Tools
             ExecuteMethod(LoadDocumentTemplates);
         }
 
-        private void toolButtonUpload_Click(object sender, EventArgs e)
-        {
-        }
-
         private void toolStripMenuItemActivateTemplates_Click(object sender, EventArgs e)
         {
             if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
-                MessageBox.Show("Please select one or more templates to activate.");
+                MessageBox.Show(this, "Please select one or more templates to activate.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -494,7 +570,7 @@ namespace Futurez.Xrm.Tools
         {
             if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
-                MessageBox.Show("Please select one or more templates to deactivate.");
+                MessageBox.Show(this, "Please select one or more templates to deactivate.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -506,7 +582,7 @@ namespace Futurez.Xrm.Tools
         {
             if (listViewDocumentTemplates.SelectedItems.Count == 0)
             {
-                MessageBox.Show("Please select one or more templates to delete.");
+                MessageBox.Show(this, "Please select one or more templates to delete.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -518,7 +594,7 @@ namespace Futurez.Xrm.Tools
         {
             if (listViewDocumentTemplates.SelectedItems.Count != 1)
             {
-                MessageBox.Show("Please select only one template to edit.");
+                MessageBox.Show(this, "Please select only one template to edit.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -549,83 +625,76 @@ namespace Futurez.Xrm.Tools
                 Message = "Retrieving the Document Template Content...",
                 Work = (w, e) =>
                 {
-                    try
+                    var renameCount = 1;
+
+                    var templateIdList = e.Argument as List<Guid>;
+
+                    // retrieve the doc template contents
+                    var templates = DocumentTemplateEdit.GetDocumentTemplates(Service, templateIdList, true);
+
+                    byte[] bytesToSave;
+                    var downloadFileName = "";
+                    Dictionary<string, byte[]> files = new Dictionary<string, byte[]>();
+                    var fileCount = templates.Count;
+
+                    foreach (var template in templates)
                     {
-                        var renameCount = 1;
+                        var folder = template.Status + "\\" + template.Type + "\\";
 
-                        var templateIdList = e.Argument as List<Guid>;
+                        var fileName = template.FileName;
+                        var ext = Path.GetExtension(template.FileName);
 
-                        // retrieve the doc template contents
-                        var templates = DocumentTemplateEdit.GetDocumentTemplates(Service, templateIdList, true);
-
-                        byte[] bytesToSave;
-                        var downloadFileName = "";
-                        Dictionary<string, byte[]> files = new Dictionary<string, byte[]>();
-                        var fileCount = templates.Count;
-
-                        foreach (var template in templates)
+                        // if we have more than one file, add a folder for the status
+                        if (fileCount > 1)
                         {
-                            var folder = template.Status + "\\" + template.Type + "\\";
-
-                            var fileName = template.FileName;
-                            var ext = Path.GetExtension(template.FileName);
-
-                            // if we have more than one file, add a folder for the status
-                            if (fileCount > 1)
-                            {
-                                fileName = folder + fileName;
-                            }
-
-                            renameCount = 1;
-                            while (files.ContainsKey(fileName))
-                            {
-                                if (fileCount > 1)
-                                {
-                                    fileName = folder + template.Name + " (" + (renameCount++).ToString() + ")" + ext;
-                                }
-                                else
-                                {
-                                    fileName = template.Name + " (" + (renameCount++).ToString() + ")" + ext;
-                                }
-                            }
-
-                            // add the file to the list for download.
-                            files.Add(fileName, template.Content);
+                            fileName = folder + fileName;
                         }
-
-                        // if only one file was selected, save just that... otherwise, package things up in a zip!
-                        if (files.Count > 1)
-                        {
-                            var zipper = new ZipBuilder();
-                            downloadFileName = string.Format("Document Templates - {0:M-d-yyyy HH-mm}.zip", DateTime.Now);
-                            bytesToSave = zipper.zipBytes(files);
-                        }
-                        else
-                        {
-                            var file = files.First();
-                            bytesToSave = file.Value;
-                            downloadFileName = file.Key;
-                        }
-                        // append the selected folder...
-                        downloadFileName = Path.Combine(saveFolder, downloadFileName);
 
                         renameCount = 1;
-                        // delete file if it exists
-                        while (File.Exists(downloadFileName))
+                        while (files.ContainsKey(fileName))
                         {
-                            downloadFileName = Path.GetFileNameWithoutExtension(downloadFileName) + " (" + (renameCount++).ToString() + ")" + Path.GetExtension(downloadFileName);
-                            downloadFileName = Path.Combine(saveFolder, downloadFileName);
+                            if (fileCount > 1)
+                            {
+                                fileName = folder + template.Name + " (" + (renameCount++).ToString() + ")" + ext;
+                            }
+                            else
+                            {
+                                fileName = template.Name + " (" + (renameCount++).ToString() + ")" + ext;
+                            }
                         }
-                        // write
-                        using (var saveMe = new FileStream(downloadFileName, FileMode.OpenOrCreate, FileAccess.Write))
-                        {
-                            saveMe.Write(bytesToSave, 0, bytesToSave.Length);
-                            saveMe.Close();
-                        }
+
+                        // add the file to the list for download.
+                        files.Add(fileName, template.Content);
                     }
-                    catch (Exception ex)
+
+                    // if only one file was selected, save just that... otherwise, package things up in a zip!
+                    if (files.Count > 1)
                     {
-                        MessageBox.Show("The following error occurred attempting to download your templates.\n" + ex.Message);
+                        var zipper = new ZipBuilder();
+                        downloadFileName = string.Format("Document Templates - {0:M-d-yyyy HH-mm}.zip", DateTime.Now);
+                        bytesToSave = zipper.zipBytes(files);
+                    }
+                    else
+                    {
+                        var file = files.First();
+                        bytesToSave = file.Value;
+                        downloadFileName = file.Key;
+                    }
+                    // append the selected folder...
+                    downloadFileName = Path.Combine(saveFolder, downloadFileName);
+
+                    renameCount = 1;
+                    // delete file if it exists
+                    while (File.Exists(downloadFileName))
+                    {
+                        downloadFileName = Path.GetFileNameWithoutExtension(downloadFileName) + " (" + (renameCount++).ToString() + ")" + Path.GetExtension(downloadFileName);
+                        downloadFileName = Path.Combine(saveFolder, downloadFileName);
+                    }
+                    // write
+                    using (var saveMe = new FileStream(downloadFileName, FileMode.OpenOrCreate, FileAccess.Write))
+                    {
+                        saveMe.Write(bytesToSave, 0, bytesToSave.Length);
+                        saveMe.Close();
                     }
                 },
                 ProgressChanged = e =>
@@ -633,7 +702,10 @@ namespace Futurez.Xrm.Tools
                     // If progress has to be notified to user, use the following method:
                     // SetWorkingMessage("Downloading your templates now...");
                 },
-                PostWorkCallBack = e => { },
+                PostWorkCallBack = e =>
+                {
+                    if (e.Error != null) MessageBox.Show(this, "The following error occurred attempting to download your templates.\n" + e.Error.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                },
                 AsyncArgument = templateIds,
                 IsCancelable = true,
                 MessageWidth = 340,
@@ -644,6 +716,114 @@ namespace Futurez.Xrm.Tools
         private void ParentForm_Resize(object sender, EventArgs e)
         {
             ResizeSummaryScreen();
+        }
+
+        private void PerformUploadFromMultiple(string[] filenames)
+        {
+            var templateNameList = new List<string>();
+            var templateList = new List<DocumentTemplateEdit>();
+
+            // grab the list of existing documents from the list view.
+            foreach (ListViewItem listItem in listViewDocumentTemplates.Items)
+            {
+                var template = (DocumentTemplateEdit)listItem.Tag;
+                templateNameList.Add(template.Name.ToLower() + "_" + template.Type);
+                templateList.Add(template);
+            }
+
+            var createTemplate = new List<FileUpload>();
+            var updateTemplate = new List<FileUpload>();
+            var ignoreTemplate = new List<FileUpload>();
+
+            // iterate on the list of files.  match each file name and extension to the template name and type
+            foreach (var file in filenames)
+            {
+                var fileUpload = new FileUpload(file, Service);
+
+                // if the file extension is not .docx nor .xlsx, ignore
+                if (fileUpload.IsIgnored)
+                {
+                    ignoreTemplate.Add(fileUpload);
+                }
+                else
+                {
+                    var key = fileUpload.TemplateName.ToLower() + "_" + fileUpload.TemplateType;
+
+                    var foundItems = templateNameList.FindAll(s => s == key);
+
+                    // match on the file name and type
+                    if (foundItems.Count == 0)
+                    {
+                        // if the template is not found, then create
+                        createTemplate.Add(fileUpload);
+                    }
+                    else
+                    {
+                        // only one instance
+                        if (foundItems.Count == 1)
+                        {
+                            var template = templateList.Find(t => t.Name.ToLower() == fileUpload.TemplateName.ToLower());
+                            fileUpload.TemplateId = template.Id;
+                            fileUpload.Note = "Update Template with id: " + template.Id.ToString("b");
+                            updateTemplate.Add(fileUpload);
+                        }
+                        else
+                        {
+                            fileUpload.IsIgnored = true;
+                            fileUpload.Note = "Duplicate template name found";
+                            ignoreTemplate.Add(fileUpload);
+                        }
+                    }
+                }
+            }
+
+            // present a summary, allow user to confirm/cancel
+            _uploadSummary = new UploadMultipleSummary(Service, createTemplate, updateTemplate, ignoreTemplate)
+            {
+                Parent = this
+            };
+            ResizeSummaryScreen();
+            ParentForm.Resize += ParentForm_Resize;
+
+            // handle the on complete event so we can reload and clean up control
+            _uploadSummary.OnComplete += UploadSummary_OnComplete;
+            _uploadSummary.BringToFront();
+            _uploadSummary.Show();
+        }
+
+        private void PerformUploadFromSingle(string filename)
+        {
+            // assuming only a single selection
+            ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
+            var template = item.Tag as DocumentTemplateEdit;
+
+            try
+            {
+                var fileUpload = new FileUpload(filename, Service);
+                if (template.Type != fileUpload.TemplateType)
+                {
+                    MessageBox.Show(this, "The extension of the file selected does not match the template selected.", "Incorrect File Type", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                else if (fileUpload.IsIgnored)
+                {
+                    MessageBox.Show(this, $"Unable to upload the selected file: {fileUpload.Note}", "Unable to upload", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                else
+                {
+                    var confirmMessage = $"NOTE: This will overwrite the Content of the Document Template '{template.Name}'. Please be sure that the Document Type and Associated Entity are correct.\n Would you like to continue?";
+                    if (MessageBox.Show(this, confirmMessage, "Confrim Upload", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    {
+                        // get the file up there!
+                        ExecuteMethod(UploadFile, fileUpload);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Error opening file : " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
@@ -663,88 +843,13 @@ namespace Futurez.Xrm.Tools
             {
                 if (openDlg.ShowDialog() == DialogResult.OK)
                 {
-                    var templateNameList = new List<string>();
-                    var templateList = new List<DocumentTemplateEdit>();
-
-                    // grab the list of existing documents from the list view.
-                    foreach (ListViewItem listItem in listViewDocumentTemplates.Items)
-                    {
-                        var template = (DocumentTemplateEdit)listItem.Tag;
-                        templateNameList.Add(template.Name.ToLower() + "_" + template.Type);
-                        templateList.Add(template);
-                    }
-
-                    var createTemplate = new List<FileUpload>();
-                    var updateTemplate = new List<FileUpload>();
-                    var ignoreTemplate = new List<FileUpload>();
-
-                    // iterate on the list of files.  match each file name and extension to the template name and type
-                    foreach (var file in openDlg.FileNames)
-                    {
-                        var fileUpload = new FileUpload(file, Service);
-
-                        // if the file extension is not .docx nor .xlsx, ignore
-                        if (fileUpload.IsIgnored)
-                        {
-                            ignoreTemplate.Add(fileUpload);
-                        }
-                        else
-                        {
-                            var key = fileUpload.TemplateName.ToLower() + "_" + fileUpload.TemplateType;
-
-                            var foundItems = templateNameList.FindAll(s => s == key);
-
-                            // match on the file name and type
-                            if (foundItems.Count == 0)
-                            {
-                                // if the template is not found, then create
-                                createTemplate.Add(fileUpload);
-                            }
-                            else
-                            {
-                                // only one instance
-                                if (foundItems.Count == 1)
-                                {
-                                    var template = templateList.Find(t => t.Name.ToLower() == fileUpload.TemplateName.ToLower());
-                                    fileUpload.TemplateId = template.Id;
-                                    fileUpload.Note = "Update Template with id: " + template.Id.ToString("b");
-                                    updateTemplate.Add(fileUpload);
-                                }
-                                else
-                                {
-                                    fileUpload.IsIgnored = true;
-                                    fileUpload.Note = "Duplicate template name found";
-                                    ignoreTemplate.Add(fileUpload);
-                                }
-                            }
-                        }
-                    }
-
-                    // present a summary, allow user to confirm/cancel
-                    _uploadSummary = new UploadMultipleSummary(Service, createTemplate, updateTemplate, ignoreTemplate)
-                    {
-                        Parent = this
-                    };
-                    ResizeSummaryScreen();
-                    ParentForm.Resize += ParentForm_Resize;
-
-                    // disable the main UI so they don't monkey with stuff
-                    ToggleMainControlsEnabled(false);
-
-                    // handle the on complete event so we can reload and clean up control
-                    _uploadSummary.OnComplete += UploadSummary_OnComplete;
-                    _uploadSummary.BringToFront();
-                    _uploadSummary.Show();
+                    PerformUploadFromMultiple(openDlg.FileNames);
                 }
             }
         }
 
         private void PerformUploadSingle()
         {
-            // assuming only a single selection
-            ListViewItem item = listViewDocumentTemplates.SelectedItems[0];
-            var template = item.Tag as DocumentTemplateEdit;
-
             // grab the list of files to be uploaded
             using (var openDlg = new OpenFileDialog()
             {
@@ -756,33 +861,7 @@ namespace Futurez.Xrm.Tools
             {
                 if (openDlg.ShowDialog() == DialogResult.OK)
                 {
-                    try
-                    {
-                        var fileUpload = new FileUpload(openDlg.FileName, Service);
-                        if (template.Type != fileUpload.TemplateType)
-                        {
-                            MessageBox.Show("The extension of the file selected does not match the template selected.", "Incorrect File Type", MessageBoxButtons.OK);
-                            return;
-                        }
-                        else if (fileUpload.IsIgnored)
-                        {
-                            MessageBox.Show($"Unable to upload the selected file: {fileUpload.Note}", "Unable to upload", MessageBoxButtons.OK);
-                            return;
-                        }
-                        else
-                        {
-                            var confirmMessage = $"NOTE: This will overwrite the Content of the Document Template '{template.Name}'. Please be sure that the Document Type and Associated Entity are correct.\n Would you like to continue?";
-                            if (MessageBox.Show(confirmMessage, "Confrim Upload", MessageBoxButtons.YesNo) == DialogResult.Yes)
-                            {
-                                // get the file up there!
-                                ExecuteMethod(UploadFile, fileUpload);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Error opening file : " + ex.Message);
-                    }
+                    PerformUploadFromSingle(openDlg.FileName);
                 }
             }
         }
@@ -831,15 +910,30 @@ namespace Futurez.Xrm.Tools
                             EntityState = EntityState.Changed
                         }
                     };
+
+                    using (var stream = new MemoryStream())
+                    {
+                        using (var tmpStream = new MemoryStream(fileToUpload.FileContents))
+                            tmpStream.CopyTo(stream, Convert.ToInt32(tmpStream.Length));
+
+                        WordHelper.RefreshColumns(stream, Service, w);
+                        fileToUpload.FileContents = stream.ToArray();
+                    }
                     request.Target.Attributes["content"] = Convert.ToBase64String(fileToUpload.FileContents);
 
-                    var response = Service.Execute(request);
+                    Service.Execute(request);
                 },
                 ProgressChanged = e =>
                 {
                 },
                 PostWorkCallBack = e =>
                 {
+                    if (e.Error != null)
+                    {
+                        MessageBox.Show(this, $"An error occured when updating the template:\n\n{e.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
                     LoadDocumentTemplates();
                 },
                 AsyncArgument = fileUpload,
@@ -863,8 +957,16 @@ namespace Futurez.Xrm.Tools
 
             ParentForm.Resize -= ParentForm_Resize;
 
+            var templateCount = updateTemplate.Count + createTemplate.Count;
+
+            if (templateCount == 0)
+            {
+                MessageBox.Show(this, "No valid document template to upload", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             // disable the main UI so they don't monkey with stuff
-            ToggleMainControlsEnabled(true);
+            ToggleMainControlsEnabled(false);
 
             if (!userCanceled)
             {
@@ -874,79 +976,76 @@ namespace Futurez.Xrm.Tools
                     Work = (w, e) =>
                     {
                         // read the file from disk
-                        try
+
+                        var errorMessages = new StringBuilder();
+                        var counter = 1;
+
+                        // make the content updates
+                        // don't use bulk update to trap errors and not overload the request
+                        foreach (var file in updateTemplate)
                         {
-                            var errorMessages = new StringBuilder();
-                            var counter = 1;
-                            var templateCount = updateTemplate.Count + createTemplate.Count;
-
-                            // make the content updates
-                            // don't use bulk update to trap errors and not overload the request
-                            foreach (var file in updateTemplate)
+                            var request = new UpdateRequest()
                             {
-                                var request = new UpdateRequest()
+                                Target = new Entity()
                                 {
-                                    Target = new Entity()
-                                    {
-                                        Id = file.TemplateId,
-                                        LogicalName = "documenttemplate",
-                                        EntityState = EntityState.Changed
-                                    }
-                                };
-                                request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
+                                    Id = file.TemplateId,
+                                    LogicalName = "documenttemplate",
+                                    EntityState = EntityState.Changed
+                                }
+                            };
+                            request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
 
-                                w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Updating template: " + file.TemplateName);
-                                // gather up error messages and continue
-                                try
-                                {
-                                    Service.Execute(request);
-                                }
-                                catch (Exception ex)
-                                {
-                                    errorMessages.AppendFormat("Error updating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
-                                }
+                            w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Updating template: " + file.TemplateName);
+                            // gather up error messages and continue
+                            try
+                            {
+                                Service.Execute(request);
                             }
-
-                            foreach (var file in createTemplate)
+                            catch (Exception ex)
                             {
-                                var request = new CreateRequest()
-                                {
-                                    Target = new Entity()
-                                    {
-                                        LogicalName = "documenttemplate",
-                                        EntityState = EntityState.Created
-                                    }
-                                };
-
-                                var desc = LimitDescription("New " + file.TemplateType + " template. Source file: " + file.FileName);
-
-                                request.Target.Attributes["name"] = file.TemplateName;
-                                request.Target.Attributes["documenttype"] = new OptionSetValue(file.TemplateTypeValue);
-                                request.Target.Attributes["description"] = desc;
-                                request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
-
-                                w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Creating template: " + file.TemplateName);
-
-                                // gather up error messages and continue
-                                try
-                                {
-                                    Service.Execute(request);
-                                }
-                                catch (Exception ex)
-                                {
-                                    errorMessages.AppendFormat("Error creating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
-                                }
-                            }
-
-                            // if we have error messages, show them the error of their ways
-                            if (errorMessages.Length > 0)
-                            {
-                                MessageBox.Show("The following errors occured attempting to upload the files\n" + errorMessages.ToString(), "Errors During Upload", MessageBoxButtons.OK);
+                                errorMessages.AppendFormat("Error updating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
                             }
                         }
-                        catch (Exception ex)
+
+                        foreach (var file in createTemplate)
                         {
-                            MessageBox.Show("An error occured uploading the files\n" + ex.Message);
+                            var request = new CreateRequest()
+                            {
+                                Target = new Entity()
+                                {
+                                    LogicalName = "documenttemplate",
+                                    EntityState = EntityState.Created
+                                }
+                            };
+
+                            var desc = "New " + file.TemplateType + " template. Source file: " + file.FileName;
+                            if (desc.Length > 100)
+                            {
+                                desc = desc.Substring(0, 100);
+                            }
+
+                            request.Target.Attributes["name"] = file.TemplateName;
+                            request.Target.Attributes["documenttype"] = new OptionSetValue(file.TemplateTypeValue);
+                            request.Target.Attributes["description"] = desc;
+                            request.Target.Attributes["content"] = Convert.ToBase64String(file.FileContents);
+
+                            w.ReportProgress(Convert.ToInt32(counter++ / templateCount) * 100, "Creating template: " + file.TemplateName);
+
+                            // gather up error messages and continue
+                            try
+                            {
+                                Service.Execute(request);
+                            }
+                            catch (Exception ex)
+                            {
+                                errorMessages.AppendFormat("Error creating template: {0}, Error Message: {1}\n", file.FileName, ex.Message);
+                            }
+                        }
+
+                        // if we have error messages, show them the error of their ways
+                        if (errorMessages.Length > 0)
+                        {
+                            throw new Exception(errorMessages.ToString());
                         }
                     },
                     ProgressChanged = e =>
@@ -956,6 +1055,13 @@ namespace Futurez.Xrm.Tools
                     },
                     PostWorkCallBack = e =>
                     {
+                        ToggleMainControlsEnabled(true);
+
+                        if (e.Error != null)
+                        {
+                            MessageBox.Show(this, $"The following errors occured attempting to upload the files:\n\n:{e.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+
                         LoadDocumentTemplates();
                     },
                     AsyncArgument = null,
@@ -965,19 +1071,56 @@ namespace Futurez.Xrm.Tools
                 });
             }
         }
+
         #endregion File Access methods
 
-        /// <summary>
-        /// Shorten description string if over 100 char
-        /// </summary>
-        /// <param name="description"></param>
-        public static string LimitDescription(string description) => description.Length > 100 ? description : description.Substring(0, 100);
+        private void NewWordTemplate()
+        {
+            using (var dialog = new NewWordTemplateDialog(Service))
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    WorkAsync(new WorkAsyncInfo
+                    {
+                        Work = (sender, e) =>
+                        {
+                            var request = new CreateRequest()
+                            {
+                                Target = new Entity()
+                                {
+                                    LogicalName = "documenttemplate",
+                                    Attributes =
+                                    {
+                                        {"name",dialog.RecordName },
+                                        {"documenttype",new OptionSetValue(2) },
+                                        {"content",Convert.ToBase64String(File.ReadAllBytes(dialog.FilePath)) },
+                                        {"languagecode",dialog.Culture.LCID },
+                                    }
+                                }
+                            };
+
+                            Service.Execute(request);
+                        },
+                        PostWorkCallBack = e =>
+                        {
+                            if (e.Error != null)
+                            {
+                                MessageBox.Show(this, $"An error occured when creating the new Word template\n\n{e.Error.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                            }
+
+                            LoadDocumentTemplates();
+                        }
+                    });
+                }
+            }
+        }
 
         private void refreshAvailableColumnsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (listViewDocumentTemplates.SelectedItems.Count != 1)
             {
-                MessageBox.Show("Please select only one template to refresh the columns.");
+                MessageBox.Show(this, "Please select only one template to refresh the columns.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -987,14 +1130,18 @@ namespace Futurez.Xrm.Tools
 
         private void RefreshColumns()
         {
-            var item = (DocumentTemplateEdit)listViewDocumentTemplates.SelectedItems[0].Tag;
+            var items = listViewDocumentTemplates.SelectedItems.Cast<ListViewItem>().Select(i => (DocumentTemplateEdit)i.Tag).ToList();
 
             WorkAsync(new WorkAsyncInfo
             {
                 Message = "Refreshing columns...",
                 Work = (bw, evt) =>
                 {
-                    item.RefreshXmlMappingContent(Service, bw);
+                    foreach (var item in items)
+                    {
+                        bw.ReportProgress(0, $"Refreshing template {item.Name}");
+                        item.RefreshXmlMappingContent(Service, bw);
+                    }
                 },
                 ProgressChanged = evt =>
                 {
@@ -1014,7 +1161,7 @@ namespace Futurez.Xrm.Tools
         {
             if (listViewDocumentTemplates.SelectedItems.Count != 1)
             {
-                MessageBox.Show("Please select only one template to update the relationships.");
+                MessageBox.Show(this, "Please select only one template to update the relationships.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -1022,9 +1169,51 @@ namespace Futurez.Xrm.Tools
             }
         }
 
+        private void templateActionsControl1_OnActionRequest(object sender, AppCode.ActionEventArgs e)
+        {
+            switch (e.Action)
+            {
+                case "btnDelete":
+                    PerformDeleteTemplates();
+                    break;
+
+                case "btnDisable":
+                    PerformDeactivateTemplates();
+                    break;
+
+                case "btnEnable":
+                    PerformActivateTemplates();
+                    break;
+
+                case "btnDownload":
+                    PerformDownloadTemplates();
+                    break;
+
+                case "lblUpload":
+                    if (e.Files.Count > 0)
+                    {
+                        PerformUploadFromMultiple(e.Files.ToArray());
+                    }
+                    else
+                    {
+                        PerformUploadFromSingle(e.Files[0]);
+                    }
+
+                    break;
+
+                case "btnRefresh":
+                    RefreshColumns();
+                    break;
+
+                case "btnRelationships":
+                    selectRelationshipsToolStripMenuItem_Click(sender, new EventArgs());
+                    break;
+            }
+        }
+
         private void toolStripMenuItemUploadMultiple_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("We will refresh the list of existing templates from the server to ensure we have the most up to date list.  Once complete, you will be prompted to select one or more files to upload.");
+            MessageBox.Show(this, "We will refresh the list of existing templates from the server to ensure we have the most up to date list.  Once complete, you will be prompted to select one or more files to upload.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // first load the templates again
             LoadDocumentTemplates(PerformUploadMultiple);
@@ -1034,7 +1223,7 @@ namespace Futurez.Xrm.Tools
         {
             if (listViewDocumentTemplates.SelectedItems.Count != 1)
             {
-                MessageBox.Show("Please select only one template to update.");
+                MessageBox.Show(this, "Please select only one template to update.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -1042,9 +1231,64 @@ namespace Futurez.Xrm.Tools
             }
         }
 
+        private void tsbNewWordTemplate_Click(object sender, EventArgs e)
+        {
+            ExecuteMethod(NewWordTemplate);
+        }
+
+        private void tsbTransformToTemplate_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new WordFileToTemplateDialog(Service))
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    var newFileNameParts = dialog.FilePath.Split('.');
+                    newFileNameParts[newFileNameParts.Length - 2] += "_template";
+                    var newFileName = string.Join(".", newFileNameParts);
+
+                    WorkAsync(new WorkAsyncInfo
+                    {
+                        Message = "Processing...",
+                        Work = (bw, evt) =>
+                        {
+                            var process = new WordDocumentToTemplate(Service, bw);
+                            process.Process(dialog.TableMetadata, dialog.Relationships, dialog.FilePath, newFileName);
+                        },
+                        ProgressChanged = evt =>
+                        {
+                            SetWorkingMessage(evt.UserState.ToString());
+                        },
+                        PostWorkCallBack = evt =>
+                        {
+                            if (evt.Error != null)
+                            {
+                                MessageBox.Show(this, "An error occured when transforming document to template: " + evt.Error.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                            }
+
+                            var dg = MessageBox.Show(this, $"Template save to {newFileName}\n\nDo you want to open it now?", "Success", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                            if (dg == DialogResult.Yes)
+                            {
+                                Process.Start(newFileName);
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
         private void tsbUpdateLocalWordTemplate_Click(object sender, EventArgs e)
         {
             ExecuteMethod(UpdateLocalWordTemplate);
+        }
+
+        private void txtSearch_TextChanged(object sender, EventArgs e)
+        {
+            listViewDocumentTemplates.Items.Clear();
+            listViewDocumentTemplates.Items.AddRange(listViewItemsColl.Where(l => (txtSearch.Text.Length == 0 || l.Text.ToLower().IndexOf(txtSearch.Text.ToLower()) >= 0)
+             && (cbbEntity.SelectedIndex == 0 || cbbEntity.SelectedItem?.ToString() == ((DocumentTemplateEdit)l.Tag).AssociatedEntity)
+             && (cbbLanguage.SelectedIndex == 0 || cbbLanguage.SelectedItem?.ToString() == ((DocumentTemplateEdit)l.Tag).Language)
+            ).ToArray());
         }
 
         private void UpdateLocalWordTemplate()

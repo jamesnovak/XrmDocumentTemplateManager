@@ -30,15 +30,15 @@ namespace Futurez.Xrm.Tools
         private void InitializeComponent()
         {
             this.pnlBottom = new System.Windows.Forms.Panel();
-            this.pnlMain = new System.Windows.Forms.Panel();
-            this.pnlFile = new System.Windows.Forms.Panel();
-            this.label1 = new System.Windows.Forms.Label();
-            this.btnBrowse = new System.Windows.Forms.Button();
-            this.txtFilePath = new System.Windows.Forms.TextBox();
-            this.btnRefreshColumns = new System.Windows.Forms.Button();
-            this.btnSelectRelationships = new System.Windows.Forms.Button();
             this.btnClose = new System.Windows.Forms.Button();
+            this.pnlMain = new System.Windows.Forms.Panel();
             this.lblProgress = new System.Windows.Forms.Label();
+            this.btnSelectRelationships = new System.Windows.Forms.Button();
+            this.btnRefreshColumns = new System.Windows.Forms.Button();
+            this.pnlFile = new System.Windows.Forms.Panel();
+            this.txtFilePath = new System.Windows.Forms.TextBox();
+            this.btnBrowse = new System.Windows.Forms.Button();
+            this.label1 = new System.Windows.Forms.Label();
             this.pnlBottom.SuspendLayout();
             this.pnlMain.SuspendLayout();
             this.pnlFile.SuspendLayout();
@@ -48,10 +48,20 @@ namespace Futurez.Xrm.Tools
             // 
             this.pnlBottom.Controls.Add(this.btnClose);
             this.pnlBottom.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.pnlBottom.Location = new System.Drawing.Point(0, 193);
+            this.pnlBottom.Location = new System.Drawing.Point(0, 223);
             this.pnlBottom.Name = "pnlBottom";
-            this.pnlBottom.Size = new System.Drawing.Size(749, 63);
+            this.pnlBottom.Size = new System.Drawing.Size(756, 63);
             this.pnlBottom.TabIndex = 1;
+            // 
+            // btnClose
+            // 
+            this.btnClose.DialogResult = System.Windows.Forms.DialogResult.OK;
+            this.btnClose.Location = new System.Drawing.Point(613, 11);
+            this.btnClose.Name = "btnClose";
+            this.btnClose.Size = new System.Drawing.Size(121, 40);
+            this.btnClose.TabIndex = 0;
+            this.btnClose.Text = "Close";
+            this.btnClose.UseVisualStyleBackColor = true;
             // 
             // pnlMain
             // 
@@ -62,60 +72,16 @@ namespace Futurez.Xrm.Tools
             this.pnlMain.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlMain.Location = new System.Drawing.Point(0, 0);
             this.pnlMain.Name = "pnlMain";
-            this.pnlMain.Size = new System.Drawing.Size(749, 193);
+            this.pnlMain.Size = new System.Drawing.Size(756, 223);
             this.pnlMain.TabIndex = 2;
             // 
-            // pnlFile
+            // lblProgress
             // 
-            this.pnlFile.Controls.Add(this.txtFilePath);
-            this.pnlFile.Controls.Add(this.btnBrowse);
-            this.pnlFile.Controls.Add(this.label1);
-            this.pnlFile.Dock = System.Windows.Forms.DockStyle.Top;
-            this.pnlFile.Location = new System.Drawing.Point(0, 0);
-            this.pnlFile.Name = "pnlFile";
-            this.pnlFile.Size = new System.Drawing.Size(749, 46);
-            this.pnlFile.TabIndex = 0;
-            // 
-            // label1
-            // 
-            this.label1.Dock = System.Windows.Forms.DockStyle.Left;
-            this.label1.Location = new System.Drawing.Point(0, 0);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(128, 46);
-            this.label1.TabIndex = 0;
-            this.label1.Text = "Template file";
-            this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            // 
-            // btnBrowse
-            // 
-            this.btnBrowse.Dock = System.Windows.Forms.DockStyle.Right;
-            this.btnBrowse.Location = new System.Drawing.Point(676, 0);
-            this.btnBrowse.Name = "btnBrowse";
-            this.btnBrowse.Size = new System.Drawing.Size(73, 46);
-            this.btnBrowse.TabIndex = 1;
-            this.btnBrowse.Text = "...";
-            this.btnBrowse.UseVisualStyleBackColor = true;
-            this.btnBrowse.Click += new System.EventHandler(this.btnBrowse_Click);
-            // 
-            // txtFilePath
-            // 
-            this.txtFilePath.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtFilePath.Location = new System.Drawing.Point(134, 10);
-            this.txtFilePath.Name = "txtFilePath";
-            this.txtFilePath.Size = new System.Drawing.Size(536, 26);
-            this.txtFilePath.TabIndex = 2;
-            // 
-            // btnRefreshColumns
-            // 
-            this.btnRefreshColumns.Enabled = false;
-            this.btnRefreshColumns.Location = new System.Drawing.Point(12, 66);
-            this.btnRefreshColumns.Name = "btnRefreshColumns";
-            this.btnRefreshColumns.Size = new System.Drawing.Size(358, 74);
-            this.btnRefreshColumns.TabIndex = 1;
-            this.btnRefreshColumns.Text = "Refresh Columns";
-            this.btnRefreshColumns.UseVisualStyleBackColor = true;
-            this.btnRefreshColumns.Click += new System.EventHandler(this.btnRefreshColumns_Click);
+            this.lblProgress.AutoSize = true;
+            this.lblProgress.Location = new System.Drawing.Point(12, 157);
+            this.lblProgress.Name = "lblProgress";
+            this.lblProgress.Size = new System.Drawing.Size(0, 20);
+            this.lblProgress.TabIndex = 3;
             // 
             // btnSelectRelationships
             // 
@@ -128,29 +94,63 @@ namespace Futurez.Xrm.Tools
             this.btnSelectRelationships.UseVisualStyleBackColor = true;
             this.btnSelectRelationships.Click += new System.EventHandler(this.btnSelectRelationships_Click);
             // 
-            // btnClose
+            // btnRefreshColumns
             // 
-            this.btnClose.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.btnClose.Location = new System.Drawing.Point(613, 11);
-            this.btnClose.Name = "btnClose";
-            this.btnClose.Size = new System.Drawing.Size(121, 40);
-            this.btnClose.TabIndex = 0;
-            this.btnClose.Text = "Close";
-            this.btnClose.UseVisualStyleBackColor = true;
+            this.btnRefreshColumns.Enabled = false;
+            this.btnRefreshColumns.Location = new System.Drawing.Point(12, 66);
+            this.btnRefreshColumns.Name = "btnRefreshColumns";
+            this.btnRefreshColumns.Size = new System.Drawing.Size(358, 74);
+            this.btnRefreshColumns.TabIndex = 1;
+            this.btnRefreshColumns.Text = "Refresh Columns";
+            this.btnRefreshColumns.UseVisualStyleBackColor = true;
+            this.btnRefreshColumns.Click += new System.EventHandler(this.btnRefreshColumns_Click);
             // 
-            // lblProgress
+            // pnlFile
             // 
-            this.lblProgress.AutoSize = true;
-            this.lblProgress.Location = new System.Drawing.Point(12, 157);
-            this.lblProgress.Name = "lblProgress";
-            this.lblProgress.Size = new System.Drawing.Size(0, 30);
-            this.lblProgress.TabIndex = 3;
+            this.pnlFile.Controls.Add(this.txtFilePath);
+            this.pnlFile.Controls.Add(this.btnBrowse);
+            this.pnlFile.Controls.Add(this.label1);
+            this.pnlFile.Dock = System.Windows.Forms.DockStyle.Top;
+            this.pnlFile.Location = new System.Drawing.Point(0, 0);
+            this.pnlFile.Name = "pnlFile";
+            this.pnlFile.Size = new System.Drawing.Size(756, 46);
+            this.pnlFile.TabIndex = 0;
+            // 
+            // txtFilePath
+            // 
+            this.txtFilePath.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtFilePath.Location = new System.Drawing.Point(134, 10);
+            this.txtFilePath.Name = "txtFilePath";
+            this.txtFilePath.Size = new System.Drawing.Size(543, 26);
+            this.txtFilePath.TabIndex = 2;
+            // 
+            // btnBrowse
+            // 
+            this.btnBrowse.Dock = System.Windows.Forms.DockStyle.Right;
+            this.btnBrowse.Location = new System.Drawing.Point(683, 0);
+            this.btnBrowse.Name = "btnBrowse";
+            this.btnBrowse.Size = new System.Drawing.Size(73, 46);
+            this.btnBrowse.TabIndex = 1;
+            this.btnBrowse.Text = "...";
+            this.btnBrowse.UseVisualStyleBackColor = true;
+            this.btnBrowse.Click += new System.EventHandler(this.btnBrowse_Click);
+            // 
+            // label1
+            // 
+            this.label1.Dock = System.Windows.Forms.DockStyle.Left;
+            this.label1.Location = new System.Drawing.Point(0, 0);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(128, 46);
+            this.label1.TabIndex = 0;
+            this.label1.Text = "Template file";
+            this.label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // LocalTemplateUpdaterDialog
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(749, 256);
+            this.ClientSize = new System.Drawing.Size(756, 286);
             this.Controls.Add(this.pnlMain);
             this.Controls.Add(this.pnlBottom);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
